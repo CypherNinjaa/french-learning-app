@@ -562,7 +562,6 @@ export const QuestionsManagement = () => {
 						{filteredQuestions.length} questions found
 					</Text>
 				</View>
-
 				{filteredQuestions.length === 0 ? (
 					<View style={styles.emptyContainer}>
 						<Text style={styles.emptyText}>No questions found</Text>
@@ -576,7 +575,7 @@ export const QuestionsManagement = () => {
 					))
 				)}
 			</ScrollView>
-			{/* Create/Edit Modal */}{" "}
+			{/* Create/Edit Modal */}
 			<Modal
 				visible={modalVisible}
 				animationType="slide"
