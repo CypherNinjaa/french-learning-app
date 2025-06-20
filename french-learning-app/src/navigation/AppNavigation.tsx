@@ -9,6 +9,7 @@ import { EmailVerificationScreen } from "../screens/EmailVerificationScreen";
 import { ResetPasswordScreen } from "../screens/ResetPasswordScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
+import { ProgressScreen } from "../screens/ProgressScreen";
 import { AdminDashboardScreen } from "../screens/AdminDashboardScreen";
 import { ContentManagementDashboard } from "../screens/admin/ContentManagementDashboard";
 import { LevelsManagement } from "../screens/admin/LevelsManagement";
@@ -33,6 +34,7 @@ export type AuthStackParamList = {
 export type AppStackParamList = {
 	Home: undefined;
 	Profile: undefined;
+	Progress: undefined;
 	AdminDashboard: undefined;
 	ContentManagementDashboard: undefined;
 	LevelsManagement: undefined;
@@ -78,6 +80,7 @@ const AppNavigator: React.FC = () => {
 		>
 			<AppStack.Screen name="Home" component={HomeScreen} />
 			<AppStack.Screen name="Profile" component={ProfileScreen} />
+			<AppStack.Screen name="Progress" component={ProgressScreen} />
 			<AppStack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
 			<AppStack.Screen
 				name="ContentManagementDashboard"

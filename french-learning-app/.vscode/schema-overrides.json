@@ -1,0 +1,12 @@
+{
+	"json.schemas": [
+		{
+			"fileMatch": ["tsconfig.json"],
+			"schema": {}
+		},
+		{
+			"fileMatch": ["package.json"],
+			"schema": {}
+		}
+	]
+}
