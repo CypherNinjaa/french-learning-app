@@ -5,7 +5,7 @@ import React, {
 	useState,
 	ReactNode,
 } from "react";
-import { AuthContextType, User } from "../types";
+import { AuthContextType, User, UserRole } from "../types";
 import { SupabaseService } from "../services/supabaseService";
 import { supabase } from "../services/supabase";
 
@@ -18,6 +18,19 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	const [user, setUser] = useState<User | null>(null);
 	const [loading, setLoading] = useState(true);
+
+	// Stage 2.3: Admin helper function
+	const checkUserRole = async (userId: string): Promise<UserRole> => {
+		try {
+			const roleResult = await SupabaseService.checkUserRole(userId);
+			return roleResult.success && roleResult.data
+				? (roleResult.data as UserRole)
+				: "user";
+		} catch (error) {
+			console.error("Error checking user role:", error);
+			return "user";
+		}
+	};
 
 	useEffect(() => {
 		// Check for existing session on app start
@@ -104,7 +117,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 			setLoading(false);
 		}
 	};
-
 	const signUp = async (
 		email: string,
 		password: string,
@@ -117,7 +129,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 				throw new Error(result.error || "Sign up failed");
 			}
 			if (result.data) {
-				setUser(result.data);
+				// Check and set user role
+				const userRole = await checkUserRole(result.data.id);
+				setUser({
+					...result.data,
+					userRole,
+				});
 			}
 		} catch (error) {
 			console.error("Sign up error:", error);
@@ -126,6 +143,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 			setLoading(false);
 		}
 	};
+
+	// Stage 2.3: Admin helper functions
+	const isAdmin = (userRole?: string): boolean => {
+		return userRole === "admin" || userRole === "super_admin";
+	};
+
+	const isSuperAdmin = (userRole?: string): boolean => {
+		return userRole === "super_admin";
+	};
+
 	const value: AuthContextType = {
 		user,
 		loading,
@@ -133,6 +160,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		signOut,
 		signUp,
 		setUser,
+		// Stage 2.3: Admin helpers
+		isAdmin: () => isAdmin(user?.userRole),
+		isSuperAdmin: () => isSuperAdmin(user?.userRole),
 	};
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
