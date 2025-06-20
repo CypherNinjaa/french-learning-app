@@ -952,8 +952,7 @@ export class ContentManagementService {
 				error: error instanceof Error ? error.message : 'Failed to fetch lesson content',
 				success: false,
 			};
-		}
-	}
+		}	}
 
 	// ============ BULK OPERATIONS ============
 	static async bulkCreateVocabulary(vocabularyList: CreateVocabularyDto[]): Promise<ApiResponse<Vocabulary[]>> {
