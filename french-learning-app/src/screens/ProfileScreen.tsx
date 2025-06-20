@@ -9,7 +9,9 @@ import {
 	Alert,
 	ScrollView,
 	Image,
+	ActivityIndicator,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../contexts/AuthContext";
 import { SupabaseService } from "../services/supabaseService";
 import { theme } from "../constants/theme";
@@ -19,6 +21,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 	const { user, setUser } = useAuth();
 	const [loading, setLoading] = useState(false);
 	const [editing, setEditing] = useState(false);
+	const [uploadingAvatar, setUploadingAvatar] = useState(false);
 	const [formData, setFormData] = useState({
 		username: user?.username || "",
 		email: user?.email || "",
@@ -70,6 +73,161 @@ export const ProfileScreen = ({ navigation }: any) => {
 			},
 		]);
 	};
+	const handleAvatarPress = () => {
+		if (!user) return;
+
+		Alert.alert("Change Avatar", "Choose an option", [
+			{ text: "Cancel", style: "cancel" },
+			{
+				text: "Take Photo",
+				onPress: () => pickImage(ImagePicker.MediaTypeOptions.Images, true),
+			},
+			{
+				text: "Choose from Gallery",
+				onPress: () => pickImage(ImagePicker.MediaTypeOptions.Images, false),
+			},
+			...(user.avatarUrl
+				? [
+						{
+							text: "Remove Avatar",
+							style: "destructive" as const,
+							onPress: handleRemoveAvatar,
+						},
+				  ]
+				: []),
+		]);
+	};
+
+	const pickImage = async (
+		mediaType: ImagePicker.MediaTypeOptions,
+		useCamera: boolean
+	) => {
+		try {
+			// Request permissions
+			if (useCamera) {
+				const { status } = await ImagePicker.requestCameraPermissionsAsync();
+				if (status !== "granted") {
+					Alert.alert(
+						"Permission needed",
+						"Camera permission is required to take photos."
+					);
+					return;
+				}
+			} else {
+				const { status } =
+					await ImagePicker.requestMediaLibraryPermissionsAsync();
+				if (status !== "granted") {
+					Alert.alert(
+						"Permission needed",
+						"Gallery permission is required to select photos."
+					);
+					return;
+				}
+			}
+
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes: mediaType,
+				allowsEditing: true,
+				aspect: [1, 1],
+				quality: 0.8,
+				...(useCamera &&
+					{
+						// For camera, we use launchCameraAsync instead
+					}),
+			});
+
+			// Use camera if requested
+			if (useCamera) {
+				const cameraResult = await ImagePicker.launchCameraAsync({
+					mediaTypes: mediaType,
+					allowsEditing: true,
+					aspect: [1, 1],
+					quality: 0.8,
+				});
+				if (!cameraResult.canceled && cameraResult.assets[0]) {
+					await uploadAvatar(cameraResult.assets[0].uri);
+				}
+				return;
+			}
+
+			if (!result.canceled && result.assets[0]) {
+				await uploadAvatar(result.assets[0].uri);
+			}
+		} catch (error) {
+			console.error("Error picking image:", error);
+			Alert.alert("Error", "Failed to pick image. Please try again.");
+		}
+	};
+
+	const uploadAvatar = async (imageUri: string) => {
+		if (!user) return;
+
+		setUploadingAvatar(true);
+		try {
+			const result = await SupabaseService.uploadAvatar(user.id, imageUri);
+
+			if (result.success && result.data) {
+				// Update user context with new avatar URL
+				const updatedUser: User = {
+					...user,
+					avatarUrl: result.data,
+				};
+				setUser(updatedUser);
+				Alert.alert("Success", "Avatar updated successfully!");
+			} else {
+				Alert.alert("Error", result.error || "Failed to upload avatar");
+			}
+		} catch (error) {
+			console.error("Error uploading avatar:", error);
+			Alert.alert("Error", "Failed to upload avatar. Please try again.");
+		} finally {
+			setUploadingAvatar(false);
+		}
+	};
+
+	const handleRemoveAvatar = async () => {
+		if (!user || !user.avatarUrl) return;
+
+		Alert.alert(
+			"Remove Avatar",
+			"Are you sure you want to remove your profile picture?",
+			[
+				{ text: "Cancel", style: "cancel" },
+				{
+					text: "Remove",
+					style: "destructive",
+					onPress: async () => {
+						setUploadingAvatar(true);
+						try {
+							const result = await SupabaseService.deleteAvatar(
+								user.id,
+								user.avatarUrl!
+							);
+
+							if (result.success) {
+								const updatedUser: User = {
+									...user,
+									avatarUrl: undefined,
+								};
+								setUser(updatedUser);
+								Alert.alert("Success", "Avatar removed successfully!");
+							} else {
+								Alert.alert("Error", result.error || "Failed to remove avatar");
+							}
+						} catch (error) {
+							console.error("Error removing avatar:", error);
+							Alert.alert(
+								"Error",
+								"Failed to remove avatar. Please try again."
+							);
+						} finally {
+							setUploadingAvatar(false);
+						}
+					},
+				},
+			]
+		);
+	};
 
 	if (!user) {
 		return (
@@ -78,16 +236,43 @@ export const ProfileScreen = ({ navigation }: any) => {
 			</View>
 		);
 	}
-
 	return (
 		<ScrollView style={styles.container}>
 			<View style={styles.header}>
 				<View style={styles.avatarContainer}>
-					<View style={styles.avatar}>
-						<Text style={styles.avatarText}>
-							{user.username.charAt(0).toUpperCase()}
+					<TouchableOpacity
+						onPress={handleAvatarPress}
+						disabled={uploadingAvatar}
+					>
+						<View style={styles.avatar}>
+							{user.avatarUrl ? (
+								<Image
+									source={{ uri: user.avatarUrl }}
+									style={styles.avatarImage}
+								/>
+							) : (
+								<Text style={styles.avatarText}>
+									{user.username.charAt(0).toUpperCase()}
+								</Text>
+							)}
+							{uploadingAvatar && (
+								<View style={styles.avatarLoadingOverlay}>
+									<ActivityIndicator
+										size="large"
+										color={theme.colors.surface}
+									/>
+								</View>
+							)}
+						</View>
+					</TouchableOpacity>
+					<TouchableOpacity
+						onPress={handleAvatarPress}
+						style={styles.editAvatarButton}
+					>
+						<Text style={styles.editAvatarText}>
+							{uploadingAvatar ? "Uploading..." : "Edit"}
 						</Text>
-					</View>
+					</TouchableOpacity>
 				</View>
 				<Text style={styles.welcomeText}>Welcome back!</Text>
 			</View>
@@ -233,6 +418,36 @@ const styles = StyleSheet.create({
 		backgroundColor: theme.colors.primary,
 		justifyContent: "center",
 		alignItems: "center",
+	},
+	avatarImage: {
+		width: "100%",
+		height: "100%",
+		borderRadius: 40,
+	},
+	avatarLoadingOverlay: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		backgroundColor: "rgba(0, 0, 0, 0.5)",
+		borderRadius: 40,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	editAvatarButton: {
+		marginTop: theme.spacing.xs,
+		paddingVertical: theme.spacing.xs,
+		paddingHorizontal: theme.spacing.sm,
+		backgroundColor: theme.colors.primary,
+		borderRadius: 12,
+		alignSelf: "center",
+	},
+	editAvatarText: {
+		fontSize: 12,
+		fontWeight: "600",
+		color: theme.colors.surface,
+		textAlign: "center",
 	},
 	avatarText: {
 		fontSize: 32,

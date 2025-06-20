@@ -48,8 +48,7 @@ export class SupabaseService {
 					throw profileError;
 				}
 
-				console.log('🎉 SignUp successful!');
-				return {
+				console.log('🎉 SignUp successful!');				return {
 					data: {
 						id: authData.user.id,						username: profileData.username || "",
 						email: authData.user.email || "",
@@ -61,6 +60,7 @@ export class SupabaseService {
 						streakDays: profileData.streak_days || 0,
 						createdAt: profileData.created_at,
 						userRole: profileData.user_role || 'user',
+						avatarUrl: profileData.avatar_url || undefined,
 					},
 					error: null,
 					success: true,
@@ -107,8 +107,7 @@ export class SupabaseService {
 
 			if (authData.user) {
 				const userProfile = await this.getUserProfile(authData.user.id);
-				if (userProfile.success && userProfile.data) {
-					return {
+				if (userProfile.success && userProfile.data) {					return {
 						data: {
 							id: authData.user.id,
 							username: userProfile.data.username || "",							email: authData.user.email || "",
@@ -120,6 +119,7 @@ export class SupabaseService {
 							streakDays: userProfile.data.streak_days,
 							createdAt: userProfile.data.created_at,
 							userRole: (userProfile.data as any).user_role || 'user',
+							avatarUrl: userProfile.data.avatar_url || undefined,
 						},
 						error: null,
 						success: true,
@@ -285,8 +285,7 @@ export class SupabaseService {
 			}
 
 			if (user) {
-				const userProfile = await this.getUserProfile(user.id);
-				if (userProfile.success && userProfile.data) {					return {
+				const userProfile = await this.getUserProfile(user.id);				if (userProfile.success && userProfile.data) {					return {
 						data: {
 							id: user.id,
 							username: userProfile.data.username || "",
@@ -299,6 +298,7 @@ export class SupabaseService {
 							streakDays: userProfile.data.streak_days,
 							createdAt: userProfile.data.created_at,
 							userRole: (userProfile.data as any).user_role || 'user',
+							avatarUrl: userProfile.data.avatar_url || undefined,
 						},
 						error: null,
 						success: true,
@@ -472,4 +472,96 @@ export class SupabaseService {
 		}
 	}
 
+	static async uploadAvatar(
+		userId: string,
+		imageUri: string
+	): Promise<ApiResponse<string>> {
+		try {
+			// Convert image URI to blob
+			const response = await fetch(imageUri);
+			const blob = await response.blob();
+			
+			// Create a unique filename
+			const fileExt = imageUri.split('.').pop() || 'jpg';
+			const fileName = `${userId}-${Date.now()}.${fileExt}`;
+			const filePath = `avatars/${fileName}`;
+
+			// Upload to Supabase storage
+			const { data: uploadData, error: uploadError } = await supabase.storage
+				.from('avatars')
+				.upload(filePath, blob, {
+					cacheControl: '3600',
+					upsert: true
+				});
+
+			if (uploadError) throw uploadError;
+
+			// Get public URL
+			const { data: urlData } = supabase.storage
+				.from('avatars')
+				.getPublicUrl(filePath);
+
+			const avatarUrl = urlData.publicUrl;
+
+			// Update user profile with new avatar URL
+			const { error: updateError } = await supabase
+				.from('profiles')
+				.update({ avatar_url: avatarUrl })
+				.eq('id', userId);
+
+			if (updateError) throw updateError;
+
+			return {
+				data: avatarUrl,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error uploading avatar:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Failed to upload avatar",
+				success: false,
+			};
+		}
+	}
+
+	static async deleteAvatar(userId: string, avatarUrl: string): Promise<ApiResponse<null>> {
+		try {
+			// Extract file path from URL
+			const urlParts = avatarUrl.split('/');
+			const fileName = urlParts[urlParts.length - 1];
+			const filePath = `avatars/${fileName}`;
+
+			// Delete from storage
+			const { error: deleteError } = await supabase.storage
+				.from('avatars')
+				.remove([filePath]);
+
+			if (deleteError) throw deleteError;
+
+			// Update user profile to remove avatar URL
+			const { error: updateError } = await supabase
+				.from('profiles')
+				.update({ avatar_url: null })
+				.eq('id', userId);
+
+			if (updateError) throw updateError;
+
+			return {
+				data: null,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error deleting avatar:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Failed to delete avatar",
+				success: false,
+			};
+		}
+	}
 }

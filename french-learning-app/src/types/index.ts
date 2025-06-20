@@ -13,6 +13,8 @@ export interface User {
 	createdAt: string;
 	// Stage 2.3 addition
 	userRole?: UserRole;
+	// Stage 2.2 addition
+	avatarUrl?: string;
 }
 
 export interface UserProfile {
