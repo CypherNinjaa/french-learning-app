@@ -77,92 +77,263 @@ export interface UserAchievement {
 	achievement?: Achievement;
 }
 
+// Stage 3: Content Management System Types
+export type DifficultyLevel = "beginner" | "intermediate" | "advanced";
+export type LessonType = "vocabulary" | "grammar" | "conversation" | "pronunciation" | "reading" | "listening";
+export type QuestionType = "multiple_choice" | "fill_blank" | "pronunciation" | "matching" | "translation" | "listening";
+export type WordType = "noun" | "verb" | "adjective" | "adverb" | "preposition" | "conjunction" | "interjection";
+export type Gender = "masculine" | "feminine" | "neutral";
+export type ConjugationGroup = "first" | "second" | "third" | "irregular";
+
 export interface Level {
 	id: number;
 	name: string;
-	description: string;
+	description?: string;
 	order_index: number;
 	is_active: boolean;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface Module {
 	id: number;
 	level_id: number;
 	title: string;
-	description: string;
+	description?: string;
 	order_index: number;
+	estimated_duration_minutes?: number;
+	difficulty_level?: DifficultyLevel;
+	learning_objectives?: string[];
 	is_active: boolean;
+	created_at: string;
+	updated_at: string;
+	level?: Level; // Optional populated level
 }
-
-export type LessonType = "vocabulary" | "grammar" | "conversation" | "pronunciation" | "cultural";
 
 export interface Lesson {
 	id: number;
 	module_id: number;
 	title: string;
-	content: any; // JSONB content
+	description?: string;
+	content?: any; // JSONB content structure
 	lesson_type: LessonType;
 	order_index: number;
 	is_active: boolean;
+	estimated_time_minutes: number;
+	difficulty_level: DifficultyLevel;
+	created_at: string;
+	updated_at: string;
+	module?: Module; // Optional populated module
 }
 
 export interface Vocabulary {
 	id: number;
-	level_id: number;
 	french_word: string;
 	english_translation: string;
-	pronunciation: string;
-	example_sentence_french: string;
-	example_sentence_english: string;
-	category: string;
-	difficulty_level: number;
+	pronunciation?: string; // IPA or phonetic notation
+	audio_url?: string;
+	example_sentence_fr?: string;
+	example_sentence_en?: string;
+	difficulty_level: DifficultyLevel;
+	category?: string;
+	gender?: Gender; // For nouns
+	word_type?: WordType;
+	conjugation_group?: ConjugationGroup; // For verbs
 	is_active: boolean;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface GrammarRule {
 	id: number;
-	level_id: number;
 	title: string;
 	explanation: string;
-	examples: any; // JSONB
-	difficulty_level: string;
+	examples?: any; // JSONB array of example objects
+	difficulty_level: DifficultyLevel;
+	category?: string;
+	order_index?: number;
 	is_active: boolean;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface Question {
 	id: number;
-	lesson_id?: number;
-	vocabulary_id?: number;
-	grammar_rule_id?: number;
+	lesson_id: number;
 	question_text: string;
-	question_type: string;
-	options: any; // JSONB
+	question_type: QuestionType;
+	options?: any; // JSONB for multiple choice, matching, etc.
 	correct_answer: string;
 	explanation?: string;
 	points: number;
-	difficulty_level: number;
+	difficulty_level: DifficultyLevel;
+	audio_url?: string; // For listening questions
+	image_url?: string; // For visual questions
+	order_index?: number;
 	is_active: boolean;
+	created_at: string;
+	updated_at: string;
+	lesson?: Lesson; // Optional populated lesson
 }
 
-export interface UserProgress {
+export interface LessonVocabulary {
 	id: number;
-	user_id: string;
 	lesson_id: number;
-	completed_at?: string;
-	score?: number;
-	time_spent: number; // in seconds
-	attempts: number;
+	vocabulary_id: number;
+	is_primary: boolean;
+	created_at: string;
+	lesson?: Lesson;
+	vocabulary?: Vocabulary;
 }
 
-export interface UserVocabularyProgress {
+export interface LessonGrammar {
 	id: number;
-	user_id: string;
+	lesson_id: number;
+	grammar_rule_id: number;
+	is_primary: boolean;
+	created_at: string;
+	lesson?: Lesson;
+	grammar_rule?: GrammarRule;
+}
+
+export interface ContentCategory {
+	id: number;
+	name: string;
+	description?: string;
+	icon?: string;
+	color?: string;
+	order_index?: number;
+	is_active: boolean;
+	created_at: string;
+}
+
+export interface ContentTag {
+	id: number;
+	name: string;
+	description?: string;
+	color?: string;
+	created_at: string;
+}
+
+export interface LessonTag {
+	id: number;
+	lesson_id: number;
+	tag_id: number;
+	created_at: string;
+	lesson?: Lesson;
+	tag?: ContentTag;
+}
+
+export interface VocabularyTag {
+	id: number;
 	vocabulary_id: number;
-	mastery_level: number; // 1-5 scale
-	last_reviewed?: string;
-	next_review?: string;
-	total_attempts: number;
-	correct_attempts: number;
+	tag_id: number;
+	created_at: string;
+	vocabulary?: Vocabulary;
+	tag?: ContentTag;
+}
+
+// Content Management DTOs (Data Transfer Objects)
+export interface CreateLevelDto {
+	name: string;
+	description?: string;
+	order_index: number;
+}
+
+export interface UpdateLevelDto extends Partial<CreateLevelDto> {
+	is_active?: boolean;
+}
+
+export interface CreateModuleDto {
+	level_id: number;
+	title: string;
+	description?: string;
+	order_index: number;
+	estimated_duration_minutes?: number;
+	difficulty_level?: DifficultyLevel;
+	learning_objectives?: string[];
+}
+
+export interface UpdateModuleDto extends Partial<CreateModuleDto> {
+	is_active?: boolean;
+}
+
+export interface CreateLessonDto {
+	module_id: number;
+	title: string;
+	description?: string;
+	content?: any;
+	lesson_type: LessonType;
+	order_index: number;
+	estimated_time_minutes?: number;
+	difficulty_level: DifficultyLevel;
+}
+
+export interface UpdateLessonDto extends Partial<CreateLessonDto> {
+	is_active?: boolean;
+}
+
+export interface CreateVocabularyDto {
+	french_word: string;
+	english_translation: string;
+	pronunciation?: string;
+	audio_url?: string;
+	example_sentence_fr?: string;
+	example_sentence_en?: string;
+	difficulty_level: DifficultyLevel;
+	category?: string;
+	gender?: Gender;
+	word_type?: WordType;
+	conjugation_group?: ConjugationGroup;
+}
+
+export interface UpdateVocabularyDto extends Partial<CreateVocabularyDto> {
+	is_active?: boolean;
+}
+
+export interface CreateGrammarRuleDto {
+	title: string;
+	explanation: string;
+	examples?: any;
+	difficulty_level: DifficultyLevel;
+	category?: string;
+	order_index?: number;
+}
+
+export interface UpdateGrammarRuleDto extends Partial<CreateGrammarRuleDto> {
+	is_active?: boolean;
+}
+
+export interface CreateQuestionDto {
+	lesson_id: number;
+	question_text: string;
+	question_type: QuestionType;
+	options?: any;
+	correct_answer: string;
+	explanation?: string;
+	points?: number;
+	difficulty_level: DifficultyLevel;
+	audio_url?: string;
+	image_url?: string;
+	order_index?: number;
+}
+
+export interface UpdateQuestionDto extends Partial<CreateQuestionDto> {
+	is_active?: boolean;
+}
+
+// Content Management Filter/Query Types
+export interface ContentFilters {
+	difficulty_level?: DifficultyLevel;
+	is_active?: boolean;
+	category?: string;
+	lesson_type?: LessonType;
+	question_type?: QuestionType;
+	search?: string;
+	limit?: number;
+	offset?: number;
+	order_by?: string;
+	order_direction?: 'asc' | 'desc';
 }
 
 // API Response wrapper
@@ -183,40 +354,4 @@ export interface AuthContextType {
 	// Stage 2.3: Admin methods
 	isAdmin: () => boolean;
 	isSuperAdmin: () => boolean;
-}
-
-// Stage 2.3: Admin types
-export interface AdminPermission {
-	id: string;
-	permission_name: string;
-	description?: string;
-	created_at: string;
-}
-
-export interface RolePermission {
-	id: string;
-	user_role: UserRole;
-	permission_name: string;
-	created_at: string;
-}
-
-export interface AdminActivityLog {
-	id: string;
-	admin_user_id: string;
-	action: string;
-	target_table?: string;
-	target_id?: string;
-	old_data?: any;
-	new_data?: any;
-	ip_address?: string;
-	user_agent?: string;
-	created_at: string;
-}
-
-export interface AdminDashboardStats {
-	totalUsers: number;
-	totalAdmins: number;
-	newUsersThisWeek: number;
-	activeUsersToday: number;
-	sessionsToday: number;
 }
