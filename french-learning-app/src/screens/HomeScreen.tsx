@@ -74,6 +74,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 					</TouchableOpacity>
 					<TouchableOpacity
 						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("PersonalizedLearning")}
+					>
+						<Text style={styles.secondaryButtonText}>
+							🎯 Personalized Learning
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("ConversationalAI")}
+					>
+						<Text style={styles.secondaryButtonText}>
+							💬 AI Conversation Partner
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("ConversationalAITest")}
+					>
+						<Text style={styles.secondaryButtonText}>
+							🧪 Conversational AI Test
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
 						onPress={() => navigation.navigate("AITest")}
 					>
 						<Text style={styles.secondaryButtonText}>🤖 AI Features Test</Text>

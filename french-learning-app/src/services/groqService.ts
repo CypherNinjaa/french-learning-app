@@ -383,6 +383,22 @@ Return an array of ${count} questions in this exact JSON format.`,
   }
 
   /**
+   * Make a custom AI request for conversational features
+   */
+  async makeCustomRequest(
+    messages: GroqMessage[],
+    options: any = {}
+  ): Promise<string> {
+    try {
+      const response = await this.makeRequest(messages, options);
+      return response.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('Error making custom AI request:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get fallback questions when AI generation fails
    */
   private getFallbackQuestions(topic: string, count: number): any[] {
