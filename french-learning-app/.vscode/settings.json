@@ -1,24 +1,47 @@
 {
-  "deno.enablePaths": [
-    "supabase/functions"
-  ],
-  "deno.lint": true,
-  "deno.unstable": [
-    "bare-node-builtins",
-    "byonm",
-    "sloppy-imports",
-    "unsafe-proto",
-    "webgpu",
-    "broadcast-channel",
-    "worker-options",
-    "cron",
-    "kv",
-    "ffi",
-    "fs",
-    "http",
-    "net"
-  ],
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  }
+	"deno.enablePaths": ["supabase/functions"],
+	"deno.lint": true,
+	"deno.unstable": [
+		"bare-node-builtins",
+		"byonm",
+		"sloppy-imports",
+		"unsafe-proto",
+		"webgpu",
+		"broadcast-channel",
+		"worker-options",
+		"cron",
+		"kv",
+		"ffi",
+		"fs",
+		"http",
+		"net"
+	],
+	"json.schemaDownload.enable": false,
+	"json.validate.enable": false,
+	"typescript.validate.enable": true,
+	"typescript.preferences.includePackageJsonAutoImports": "off",
+	"json.schemas": [],
+	"typescript.suggest.includeAutomaticOptionalChainCompletions": false,
+	"files.associations": {
+		"tsconfig.json": "jsonc",
+		"package.json": "json"
+	},
+	"json.format.enable": true,
+	"editor.quickSuggestions": {
+		"strings": false
+	},
+	"[json]": {
+		"editor.quickSuggestions": {
+			"strings": true
+		},
+		"editor.suggest.insertMode": "replace"
+	},
+	"[jsonc]": {
+		"editor.quickSuggestions": {
+			"strings": true
+		},
+		"editor.suggest.insertMode": "replace"
+	},
+	"problems.decorations.enabled": false,
+	"extensions.ignoreRecommendations": true
 }
