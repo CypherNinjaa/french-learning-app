@@ -1,6 +1,7 @@
 // Core TypeScript interfaces following the development rules
 
 export type UserLevel = "beginner" | "intermediate" | "advanced";
+export type UserRole = "user" | "admin" | "super_admin";
 
 export interface User {
 	id: string;
@@ -10,6 +11,10 @@ export interface User {
 	points: number;
 	streakDays: number;
 	createdAt: string;
+	// Stage 2.3 addition
+	userRole?: UserRole;
+	// Stage 2.2 addition
+	avatarUrl?: string;
 }
 
 export interface UserProfile {
@@ -175,4 +180,43 @@ export interface AuthContextType {
 	signIn: (email: string, password: string) => Promise<void>;
 	signOut: () => Promise<void>;
 	setUser: (user: User | null) => void;
+	// Stage 2.3: Admin methods
+	isAdmin: () => boolean;
+	isSuperAdmin: () => boolean;
+}
+
+// Stage 2.3: Admin types
+export interface AdminPermission {
+	id: string;
+	permission_name: string;
+	description?: string;
+	created_at: string;
+}
+
+export interface RolePermission {
+	id: string;
+	user_role: UserRole;
+	permission_name: string;
+	created_at: string;
+}
+
+export interface AdminActivityLog {
+	id: string;
+	admin_user_id: string;
+	action: string;
+	target_table?: string;
+	target_id?: string;
+	old_data?: any;
+	new_data?: any;
+	ip_address?: string;
+	user_agent?: string;
+	created_at: string;
+}
+
+export interface AdminDashboardStats {
+	totalUsers: number;
+	totalAdmins: number;
+	newUsersThisWeek: number;
+	activeUsersToday: number;
+	sessionsToday: number;
 }

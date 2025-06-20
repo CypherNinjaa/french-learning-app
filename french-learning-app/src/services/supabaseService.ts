@@ -1,6 +1,6 @@
 // Supabase service layer following the development rules
 import { supabase } from "./supabase";
-import { User, UserProfile, ApiResponse } from "../types";
+import { User, UserProfile, ApiResponse, UserRole } from "../types";
 
 export class SupabaseService {
 	// User authentication methods
@@ -12,13 +12,12 @@ export class SupabaseService {
 		try {
 			console.log('🔄 Starting signUp process...');
 			console.log('📧 Email:', email);
-			console.log('👤 UserData:', userData);
-
-			const { data: authData, error: authError } = await supabase.auth.signUp({
+			console.log('👤 UserData:', userData);			const { data: authData, error: authError } = await supabase.auth.signUp({
 				email,
 				password,
 				options: {
 					data: userData,
+					emailRedirectTo: 'frenchlearning://email-verification',
 				},
 			});
 
@@ -49,11 +48,9 @@ export class SupabaseService {
 					throw profileError;
 				}
 
-				console.log('🎉 SignUp successful!');
-				return {
+				console.log('🎉 SignUp successful!');				return {
 					data: {
-						id: authData.user.id,
-						username: profileData.username || "",
+						id: authData.user.id,						username: profileData.username || "",
 						email: authData.user.email || "",
 						level: profileData.level as
 							| "beginner"
@@ -62,6 +59,8 @@ export class SupabaseService {
 						points: profileData.points || 0,
 						streakDays: profileData.streak_days || 0,
 						createdAt: profileData.created_at,
+						userRole: profileData.user_role || 'user',
+						avatarUrl: profileData.avatar_url || undefined,
 					},
 					error: null,
 					success: true,
@@ -108,12 +107,10 @@ export class SupabaseService {
 
 			if (authData.user) {
 				const userProfile = await this.getUserProfile(authData.user.id);
-				if (userProfile.success && userProfile.data) {
-					return {
+				if (userProfile.success && userProfile.data) {					return {
 						data: {
 							id: authData.user.id,
-							username: userProfile.data.username || "",
-							email: authData.user.email || "",
+							username: userProfile.data.username || "",							email: authData.user.email || "",
 							level: userProfile.data.level as
 								| "beginner"
 								| "intermediate"
@@ -121,6 +118,8 @@ export class SupabaseService {
 							points: userProfile.data.points,
 							streakDays: userProfile.data.streak_days,
 							createdAt: userProfile.data.created_at,
+							userRole: (userProfile.data as any).user_role || 'user',
+							avatarUrl: userProfile.data.avatar_url || undefined,
 						},
 						error: null,
 						success: true,
@@ -217,11 +216,10 @@ export class SupabaseService {
 			};
 		}
 	}
-
 	static async resetPassword(email: string): Promise<ApiResponse<null>> {
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: 'https://your-app.com/reset-password', // This would be your app's deep link
+				redirectTo: 'frenchlearning://reset-password',
 			});
 
 			if (error) throw error;
@@ -233,6 +231,30 @@ export class SupabaseService {
 			};
 		} catch (error) {
 			console.error("Error in resetPassword:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Unknown error occurred",
+				success: false,
+			};
+		}
+	}
+
+	static async updatePassword(newPassword: string): Promise<ApiResponse<null>> {
+		try {
+			const { error } = await supabase.auth.updateUser({
+				password: newPassword
+			});
+
+			if (error) throw error;
+
+			return {
+				data: null,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error in updatePassword:", error);
 			return {
 				data: null,
 				error:
@@ -263,9 +285,7 @@ export class SupabaseService {
 			}
 
 			if (user) {
-				const userProfile = await this.getUserProfile(user.id);
-				if (userProfile.success && userProfile.data) {
-					return {
+				const userProfile = await this.getUserProfile(user.id);				if (userProfile.success && userProfile.data) {					return {
 						data: {
 							id: user.id,
 							username: userProfile.data.username || "",
@@ -277,6 +297,8 @@ export class SupabaseService {
 							points: userProfile.data.points,
 							streakDays: userProfile.data.streak_days,
 							createdAt: userProfile.data.created_at,
+							userRole: (userProfile.data as any).user_role || 'user',
+							avatarUrl: userProfile.data.avatar_url || undefined,
 						},
 						error: null,
 						success: true,
@@ -299,6 +321,246 @@ export class SupabaseService {
 				data: null,
 				error: null, // Don't treat missing session as an error
 				success: true,
+			};
+		}
+	}
+
+	static async verifyEmail(token: string): Promise<ApiResponse<null>> {
+		try {
+			const { error } = await supabase.auth.verifyOtp({
+				token_hash: token,
+				type: 'signup'
+			});
+
+			if (error) throw error;
+
+			return {
+				data: null,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error in verifyEmail:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Unknown error occurred",
+				success: false,
+			};
+		}
+	}
+
+	static async resetPasswordWithToken(token: string, newPassword: string): Promise<ApiResponse<null>> {
+		try {
+			// First verify the reset token
+			const { error: verifyError } = await supabase.auth.verifyOtp({
+				token_hash: token,
+				type: 'recovery'
+			});
+
+			if (verifyError) throw verifyError;
+
+			// Then update the password
+			const { error: updateError } = await supabase.auth.updateUser({
+				password: newPassword
+			});
+
+			if (updateError) throw updateError;
+
+			return {
+				data: null,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error in resetPasswordWithToken:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Unknown error occurred",
+				success: false,
+			};
+		}
+	}
+
+	// Admin methods for Stage 2.3
+	static async getAdminDashboardStats(): Promise<ApiResponse<{
+		totalUsers: number;
+		totalAdmins: number;
+		newUsersThisWeek: number;
+		activeUsersToday: number;
+		sessionsToday: number;
+	}>> {
+		try {
+			const { data, error } = await supabase
+				.from('admin_dashboard_stats')
+				.select('*')
+				.single();
+
+			if (error) throw error;
+
+			return {
+				data: {
+					totalUsers: data.total_users || 0,
+					totalAdmins: data.total_admins || 0,
+					newUsersThisWeek: data.new_users_this_week || 0,
+					activeUsersToday: data.active_users_today || 0,
+					sessionsToday: data.sessions_today || 0,
+				},
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error in getAdminDashboardStats:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Unknown error occurred",
+				success: false,
+			};
+		}
+	}
+
+	static async checkUserRole(userId: string): Promise<ApiResponse<string>> {
+		try {
+			const { data, error } = await supabase
+				.from('profiles')
+				.select('user_role')
+				.eq('id', userId)
+				.single();
+
+			if (error) throw error;
+
+			return {
+				data: data.user_role || 'user',
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error in checkUserRole:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Unknown error occurred",
+				success: false,
+			};
+		}
+	}
+
+	static async hasAdminPermission(userId: string, permission: string): Promise<ApiResponse<boolean>> {
+		try {
+			const { data, error } = await supabase.rpc('has_permission', {
+				user_id: userId,
+				permission: permission
+			});
+
+			if (error) throw error;
+
+			return {
+				data: data === true,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error in hasAdminPermission:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Unknown error occurred",
+				success: false,
+			};
+		}
+	}
+
+	static async uploadAvatar(
+		userId: string,
+		imageUri: string
+	): Promise<ApiResponse<string>> {
+		try {
+			// Convert image URI to blob
+			const response = await fetch(imageUri);
+			const blob = await response.blob();
+			
+			// Create a unique filename
+			const fileExt = imageUri.split('.').pop() || 'jpg';
+			const fileName = `${userId}-${Date.now()}.${fileExt}`;
+			const filePath = `avatars/${fileName}`;
+
+			// Upload to Supabase storage
+			const { data: uploadData, error: uploadError } = await supabase.storage
+				.from('avatars')
+				.upload(filePath, blob, {
+					cacheControl: '3600',
+					upsert: true
+				});
+
+			if (uploadError) throw uploadError;
+
+			// Get public URL
+			const { data: urlData } = supabase.storage
+				.from('avatars')
+				.getPublicUrl(filePath);
+
+			const avatarUrl = urlData.publicUrl;
+
+			// Update user profile with new avatar URL
+			const { error: updateError } = await supabase
+				.from('profiles')
+				.update({ avatar_url: avatarUrl })
+				.eq('id', userId);
+
+			if (updateError) throw updateError;
+
+			return {
+				data: avatarUrl,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error uploading avatar:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Failed to upload avatar",
+				success: false,
+			};
+		}
+	}
+
+	static async deleteAvatar(userId: string, avatarUrl: string): Promise<ApiResponse<null>> {
+		try {
+			// Extract file path from URL
+			const urlParts = avatarUrl.split('/');
+			const fileName = urlParts[urlParts.length - 1];
+			const filePath = `avatars/${fileName}`;
+
+			// Delete from storage
+			const { error: deleteError } = await supabase.storage
+				.from('avatars')
+				.remove([filePath]);
+
+			if (deleteError) throw deleteError;
+
+			// Update user profile to remove avatar URL
+			const { error: updateError } = await supabase
+				.from('profiles')
+				.update({ avatar_url: null })
+				.eq('id', userId);
+
+			if (updateError) throw updateError;
+
+			return {
+				data: null,
+				error: null,
+				success: true,
+			};
+		} catch (error) {
+			console.error("Error deleting avatar:", error);
+			return {
+				data: null,
+				error:
+					error instanceof Error ? error.message : "Failed to delete avatar",
+				success: false,
 			};
 		}
 	}
