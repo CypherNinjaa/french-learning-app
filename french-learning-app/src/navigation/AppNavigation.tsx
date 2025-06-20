@@ -20,6 +20,9 @@ import { GrammarManagement } from "../screens/admin/GrammarManagement";
 import { QuestionsManagement } from "../screens/admin/QuestionsManagement";
 import { PronunciationTestScreen } from "../screens/PronunciationTestScreen";
 import { AITestScreen } from "../screens/AITestScreen";
+import { PersonalizedLearningScreen } from "../screens/PersonalizedLearningScreen";
+import { ConversationalAIScreen } from "../screens/ConversationalAIScreen";
+import { ConversationalAITestScreen } from "../screens/ConversationalAITestScreen";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../constants/theme";
 import { deepLinkHandler } from "../utils/deepLinkHandler";
@@ -47,6 +50,9 @@ export type AppStackParamList = {
 	QuestionsManagement: undefined;
 	PronunciationTest: undefined;
 	AITest: undefined;
+	PersonalizedLearning: undefined;
+	ConversationalAI: undefined;
+	ConversationalAITest: undefined;
 	// Add more screens as they are created
 };
 
@@ -107,6 +113,18 @@ const AppNavigator: React.FC = () => {
 				component={PronunciationTestScreen}
 			/>
 			<AppStack.Screen name="AITest" component={AITestScreen} />
+			<AppStack.Screen
+				name="PersonalizedLearning"
+				component={PersonalizedLearningScreen}
+			/>
+			<AppStack.Screen
+				name="ConversationalAI"
+				component={ConversationalAIScreen}
+			/>
+			<AppStack.Screen
+				name="ConversationalAITest"
+				component={ConversationalAITestScreen}
+			/>
 		</AppStack.Navigator>
 	);
 };
