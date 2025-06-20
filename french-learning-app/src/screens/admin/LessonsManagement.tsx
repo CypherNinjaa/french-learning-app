@@ -261,14 +261,11 @@ export const LessonsManagement = () => {
 	useEffect(() => {
 		loadData();
 	}, [selectedModule, selectedLevel]);
-
 	const LessonCard = ({ lesson }: { lesson: Lesson }) => {
 		const module = modules.find((m) => m.id === lesson.module_id);
 		const level = levels.find((l) => l.id === module?.level_id);
-
 		return (
 			<View style={styles.lessonCard}>
-				{" "}
 				<View style={styles.lessonHeader}>
 					<View style={styles.lessonInfo}>
 						<View style={styles.lessonTitleRow}>
@@ -280,7 +277,7 @@ export const LessonsManagement = () => {
 						<Text style={styles.lessonDescription}>{lesson.description}</Text>
 						<View style={styles.lessonMeta}>
 							<Text style={styles.metaText}>
-								{level?.name} › {module?.title}
+								{level?.name} • {module?.title}
 							</Text>
 						</View>
 					</View>
@@ -786,12 +783,14 @@ const styles = StyleSheet.create({
 		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.1,
 		shadowRadius: 3.84,
+		minHeight: 120,
 	},
 	lessonHeader: {
 		flexDirection: "row",
 		justifyContent: "space-between",
 		alignItems: "flex-start",
 		marginBottom: theme.spacing.md,
+		minHeight: 60,
 	},
 	lessonInfo: {
 		flex: 1,
@@ -827,13 +826,17 @@ const styles = StyleSheet.create({
 		fontStyle: "italic",
 	},
 	lessonActions: {
-		flexDirection: "row",
-		gap: theme.spacing.sm,
+		flexDirection: "column",
+		gap: theme.spacing.xs,
+		alignItems: "flex-end",
+		minWidth: 100,
 	},
 	actionButton: {
 		paddingHorizontal: theme.spacing.md,
 		paddingVertical: theme.spacing.sm,
 		borderRadius: 6,
+		minWidth: 70,
+		alignItems: "center",
 	},
 	previewButton: {
 		backgroundColor: theme.colors.primary + "15",
@@ -865,10 +868,12 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		flexWrap: "wrap",
 		gap: theme.spacing.md,
+		marginTop: theme.spacing.sm,
 	},
 	lessonDetailItem: {
 		flexDirection: "row",
 		alignItems: "center",
+		marginBottom: theme.spacing.xs,
 	},
 	detailLabel: {
 		fontSize: 12,
