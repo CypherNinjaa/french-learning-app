@@ -43,7 +43,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 					<View style={styles.statItem}>
 						<Text style={styles.statNumber}>{user?.streakDays || 0}</Text>
 						<Text style={styles.statLabel}>Day Streak</Text>
-					</View>
+					</View>{" "}
 					<View style={styles.statItem}>
 						<Text style={styles.statLevel}>{user?.level || "beginner"}</Text>
 						<Text style={styles.statLabel}>Level</Text>
@@ -58,7 +58,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						onPress={() => navigation.navigate("Profile")}
 					>
 						<Text style={styles.secondaryButtonText}>View Profile</Text>
-					</TouchableOpacity>{" "}
+					</TouchableOpacity>
 					<TouchableOpacity
 						style={styles.secondaryButton}
 						onPress={() => navigation.navigate("Progress")}
