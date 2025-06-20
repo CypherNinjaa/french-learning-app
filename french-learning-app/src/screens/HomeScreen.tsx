@@ -14,7 +14,7 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-	const { user, signOut } = useAuth();
+	const { user, signOut, isAdmin } = useAuth();
 
 	const handleSignOut = async () => {
 		try {
@@ -48,28 +48,38 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						<Text style={styles.statLevel}>{user?.level || "beginner"}</Text>
 						<Text style={styles.statLabel}>Level</Text>
 					</View>
-				</View>{" "}
+				</View>
 				<View style={styles.buttonContainer}>
 					<TouchableOpacity style={styles.primaryButton}>
 						<Text style={styles.primaryButtonText}>Start Learning</Text>
 					</TouchableOpacity>
-
 					<TouchableOpacity
 						style={styles.secondaryButton}
 						onPress={() => navigation.navigate("Profile")}
 					>
 						<Text style={styles.secondaryButtonText}>View Profile</Text>
 					</TouchableOpacity>
-
 					<TouchableOpacity style={styles.secondaryButton}>
 						<Text style={styles.secondaryButtonText}>View Progress</Text>
 					</TouchableOpacity>
-
 					<TouchableOpacity style={styles.secondaryButton}>
 						<Text style={styles.secondaryButtonText}>
 							Practice Pronunciation
 						</Text>
 					</TouchableOpacity>
+					{/* Stage 2.3: Admin Panel Access */}
+					{isAdmin() && (
+						<TouchableOpacity
+							style={[styles.secondaryButton, styles.adminButton]}
+							onPress={() => navigation.navigate("AdminDashboard")}
+						>
+							<Text
+								style={[styles.secondaryButtonText, styles.adminButtonText]}
+							>
+								👑 Admin Panel
+							</Text>
+						</TouchableOpacity>
+					)}
 				</View>
 				<TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
 					<Text style={styles.signOutText}>Sign Out</Text>
@@ -170,6 +180,14 @@ const styles = StyleSheet.create({
 		color: theme.colors.primary,
 		fontSize: 16,
 		fontWeight: "600",
+	},
+	// Stage 2.3: Admin button styles
+	adminButton: {
+		backgroundColor: theme.colors.primary,
+		borderColor: theme.colors.primary,
+	},
+	adminButtonText: {
+		color: theme.colors.surface,
 	},
 	signOutButton: {
 		alignItems: "center",

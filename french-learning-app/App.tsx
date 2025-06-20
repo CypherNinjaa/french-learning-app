@@ -1,10 +1,20 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/contexts/AuthContext";
 import { AppNavigation } from "./src/navigation/AppNavigation";
+import { deepLinkHandler } from "./src/utils/deepLinkHandler";
 
 export default function App() {
+	useEffect(() => {
+		// Initialize deep link handling
+		const subscription = deepLinkHandler.initialize();
+
+		return () => {
+			subscription?.remove();
+		};
+	}, []);
+
 	return (
 		<SafeAreaProvider>
 			<AuthProvider>

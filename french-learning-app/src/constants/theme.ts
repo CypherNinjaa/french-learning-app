@@ -10,6 +10,8 @@ export const theme = {
 		surface: "#FFFFFF",
 		text: "#000000",
 		textSecondary: "#8E8E93",
+		white: "#FFFFFF",
+		black: "#000000",
 	},
 	spacing: {
 		xs: 4,
@@ -31,6 +33,15 @@ export const theme = {
 			fontSize: 16,
 			fontWeight: "400" as "400",
 		},
+		button: {
+			fontSize: 16,
+			fontWeight: "600" as "600",
+		},
+	},
+	borderRadius: {
+		small: 8,
+		medium: 12,
+		large: 16,
 	},
 };
 
