@@ -23,7 +23,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 			console.error("Sign out error:", error);
 		}
 	};
-
 	return (
 		<SafeAreaView style={styles.container}>
 			<View style={styles.content}>
@@ -64,11 +63,44 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						onPress={() => navigation.navigate("Progress")}
 					>
 						<Text style={styles.secondaryButtonText}>View Progress</Text>
-					</TouchableOpacity>
-					<TouchableOpacity style={styles.secondaryButton}>
+					</TouchableOpacity>{" "}
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("PronunciationTest")}
+					>
 						<Text style={styles.secondaryButtonText}>
-							Practice Pronunciation
+							🔊 Practice Pronunciation
 						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("PersonalizedLearning")}
+					>
+						<Text style={styles.secondaryButtonText}>
+							🎯 Personalized Learning
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("ConversationalAI")}
+					>
+						<Text style={styles.secondaryButtonText}>
+							💬 AI Conversation Partner
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("ConversationalAITest")}
+					>
+						<Text style={styles.secondaryButtonText}>
+							🧪 Conversational AI Test
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("AITest")}
+					>
+						<Text style={styles.secondaryButtonText}>🤖 AI Features Test</Text>
 					</TouchableOpacity>
 					{/* Stage 2.3: Admin Panel Access */}
 					{isAdmin() && (
@@ -107,13 +139,15 @@ const styles = StyleSheet.create({
 		marginTop: theme.spacing.lg,
 	},
 	welcomeText: {
-		...theme.typography.heading,
+		fontSize: 24,
+		fontWeight: "700",
 		color: theme.colors.text,
 		marginBottom: theme.spacing.sm,
 		textAlign: "center",
 	},
 	subtitle: {
-		...theme.typography.body,
+		fontSize: 16,
+		fontWeight: "400",
 		color: theme.colors.textSecondary,
 		textAlign: "center",
 	},
@@ -150,9 +184,9 @@ const styles = StyleSheet.create({
 		textTransform: "capitalize",
 	},
 	statLabel: {
-		...theme.typography.body,
-		color: theme.colors.textSecondary,
 		fontSize: 14,
+		fontWeight: "400",
+		color: theme.colors.textSecondary,
 	},
 	buttonContainer: {
 		flex: 1,
