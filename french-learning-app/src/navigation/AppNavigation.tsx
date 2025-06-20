@@ -19,6 +19,7 @@ import { VocabularyManagement } from "../screens/admin/VocabularyManagement";
 import { GrammarManagement } from "../screens/admin/GrammarManagement";
 import { QuestionsManagement } from "../screens/admin/QuestionsManagement";
 import { PronunciationTestScreen } from "../screens/PronunciationTestScreen";
+import { AITestScreen } from "../screens/AITestScreen";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../constants/theme";
 import { deepLinkHandler } from "../utils/deepLinkHandler";
@@ -45,6 +46,7 @@ export type AppStackParamList = {
 	GrammarManagement: undefined;
 	QuestionsManagement: undefined;
 	PronunciationTest: undefined;
+	AITest: undefined;
 	// Add more screens as they are created
 };
 
@@ -104,6 +106,7 @@ const AppNavigator: React.FC = () => {
 				name="PronunciationTest"
 				component={PronunciationTestScreen}
 			/>
+			<AppStack.Screen name="AITest" component={AITestScreen} />
 		</AppStack.Navigator>
 	);
 };

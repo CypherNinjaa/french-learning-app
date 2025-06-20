@@ -63,7 +63,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						onPress={() => navigation.navigate("Progress")}
 					>
 						<Text style={styles.secondaryButtonText}>View Progress</Text>
-					</TouchableOpacity>
+					</TouchableOpacity>{" "}
 					<TouchableOpacity
 						style={styles.secondaryButton}
 						onPress={() => navigation.navigate("PronunciationTest")}
@@ -71,6 +71,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						<Text style={styles.secondaryButtonText}>
 							🔊 Practice Pronunciation
 						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.secondaryButton}
+						onPress={() => navigation.navigate("AITest")}
+					>
+						<Text style={styles.secondaryButtonText}>🤖 AI Features Test</Text>
 					</TouchableOpacity>
 					{/* Stage 2.3: Admin Panel Access */}
 					{isAdmin() && (
