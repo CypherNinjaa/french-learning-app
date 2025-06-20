@@ -161,18 +161,24 @@ export const ContentManagementDashboard = () => {
 			console.error("Error loading recent activity:", error);
 		}
 	};
-
 	const loadStats = async () => {
 		try {
 			// Load content statistics
-			const [levelsRes, modulesRes, lessonsRes, vocabRes, grammarRes] =
-				await Promise.all([
-					ContentManagementService.getLevels(),
-					ContentManagementService.getModules(),
-					ContentManagementService.getLessons(),
-					ContentManagementService.getVocabulary({ limit: 1000 }),
-					ContentManagementService.getGrammarRules(),
-				]);
+			const [
+				levelsRes,
+				modulesRes,
+				lessonsRes,
+				vocabRes,
+				grammarRes,
+				questionsRes,
+			] = await Promise.all([
+				ContentManagementService.getLevels(),
+				ContentManagementService.getModules(),
+				ContentManagementService.getLessons(),
+				ContentManagementService.getVocabulary({ limit: 1000 }),
+				ContentManagementService.getGrammarRules(),
+				ContentManagementService.getQuestions(),
+			]);
 
 			setStats({
 				levels: levelsRes.data?.length || 0,
@@ -180,7 +186,7 @@ export const ContentManagementDashboard = () => {
 				lessons: lessonsRes.data?.length || 0,
 				vocabulary: vocabRes.data?.length || 0,
 				grammarRules: grammarRes.data?.length || 0,
-				questions: 0, // Will be calculated from lessons
+				questions: questionsRes.data?.length || 0,
 			}); // Load recent activity
 			await loadRecentActivity(
 				levelsRes.data || undefined,
