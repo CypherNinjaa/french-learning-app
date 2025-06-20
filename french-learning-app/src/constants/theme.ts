@@ -1,6 +1,5 @@
 // Theme constants following the development rules
-export const theme = {
-	colors: {
+export const theme = {	colors: {
 		primary: "#007AFF",
 		secondary: "#5856D6",
 		success: "#34C759",
@@ -12,6 +11,7 @@ export const theme = {
 		textSecondary: "#8E8E93",
 		white: "#FFFFFF",
 		black: "#000000",
+		border: "#E5E5EA",
 	},
 	spacing: {
 		xs: 4,

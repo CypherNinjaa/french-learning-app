@@ -54,12 +54,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 			"User management features will be available in Stage 3"
 		);
 	};
-
 	const handleContentManagement = () => {
-		Alert.alert(
-			"Coming Soon",
-			"Content management features will be available in Stage 3"
-		);
+		navigation.navigate("ContentManagementDashboard");
 	};
 
 	const handleAnalytics = () => {
