@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/contexts/AuthContext";
+import { ThemeProvider } from "./src/contexts/ThemeContext";
 import { AppNavigation } from "./src/navigation/AppNavigation";
 import { deepLinkHandler } from "./src/utils/deepLinkHandler";
 
@@ -17,10 +18,12 @@ export default function App() {
 
 	return (
 		<SafeAreaProvider>
-			<AuthProvider>
-				<AppNavigation />
-				<StatusBar style="auto" />
-			</AuthProvider>
+			<ThemeProvider>
+				<AuthProvider>
+					<AppNavigation />
+					<StatusBar style="auto" />
+				</AuthProvider>
+			</ThemeProvider>
 		</SafeAreaProvider>
 	);
 }
