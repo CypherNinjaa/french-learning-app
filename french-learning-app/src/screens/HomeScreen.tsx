@@ -58,7 +58,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						onPress={() => navigation.navigate("Profile")}
 					>
 						<Text style={styles.secondaryButtonText}>View Profile</Text>
-					</TouchableOpacity>{" "}
+					</TouchableOpacity>
 					<TouchableOpacity
 						style={styles.secondaryButton}
 						onPress={() => navigation.navigate("Progress")}

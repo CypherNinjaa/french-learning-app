@@ -258,6 +258,7 @@ export const FillInBlankRenderer: React.FC<FillInBlankProps> = ({
 
 			{/* Progress Indicator */}
 			<View style={styles.progressContainer}>
+				{" "}
 				<Text style={styles.progressText}>
 					{blanks.filter((b) => b.value.trim() !== "").length} / {blanks.length}{" "}
 					blanks filled
