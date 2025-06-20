@@ -18,6 +18,7 @@ import { LessonsManagement } from "../screens/admin/LessonsManagement";
 import { VocabularyManagement } from "../screens/admin/VocabularyManagement";
 import { GrammarManagement } from "../screens/admin/GrammarManagement";
 import { QuestionsManagement } from "../screens/admin/QuestionsManagement";
+import { PronunciationTestScreen } from "../screens/PronunciationTestScreen";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../constants/theme";
 import { deepLinkHandler } from "../utils/deepLinkHandler";
@@ -43,6 +44,7 @@ export type AppStackParamList = {
 	VocabularyManagement: undefined;
 	GrammarManagement: undefined;
 	QuestionsManagement: undefined;
+	PronunciationTest: undefined;
 	// Add more screens as they are created
 };
 
@@ -97,6 +99,10 @@ const AppNavigator: React.FC = () => {
 			<AppStack.Screen
 				name="QuestionsManagement"
 				component={QuestionsManagement}
+			/>
+			<AppStack.Screen
+				name="PronunciationTest"
+				component={PronunciationTestScreen}
 			/>
 		</AppStack.Navigator>
 	);
