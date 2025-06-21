@@ -245,6 +245,12 @@ export const VocabularyScreen: React.FC<VocabularyScreenProps> = ({
 		return <LoadingState />;
 	}
 
+	const handleRetry = () => {
+		setSelectedCategory("all");
+		setSelectedDifficulty("all");
+		fetchVocabulary();
+	};
+
 	if (error) {
 		return (
 			<ErrorState
@@ -260,7 +266,8 @@ export const VocabularyScreen: React.FC<VocabularyScreenProps> = ({
 			<EmptyState
 				title="No Vocabulary Found"
 				description="No vocabulary words found for the selected filters. Try changing your filters or check back later!"
-				onRetry={fetchVocabulary}
+				onRetry={handleRetry}
+				buttonText="Reset Filters"
 			/>
 		);
 	}

@@ -499,25 +499,4 @@ export const ModernProgressBar: React.FC<ModernProgressBarProps> = ({
 };
 
 // Theme Switch Button Component
-export const ThemeSwitchButton: React.FC<{ size?: number }> = ({
-	size = 24,
-}) => {
-	const { isDark, toggleTheme, theme } = useTheme();
-	return (
-		<TouchableOpacity
-			onPress={toggleTheme}
-			style={{
-				padding: 6,
-				borderRadius: 20,
-				backgroundColor: theme.colors.surfaceSecondary,
-			}}
-			accessibilityLabel="Switch theme"
-		>
-			<Ionicons
-				name={isDark ? "sunny" : "moon"}
-				size={size}
-				color={theme.colors.primary}
-			/>
-		</TouchableOpacity>
-	);
-};
+export const ThemeSwitchButton: React.FC<{ size?: number }> = () => null;
