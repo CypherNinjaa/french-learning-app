@@ -9,7 +9,7 @@ import {
 	RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../contexts/ThemeContext";
+import { theme } from "../constants/theme";
 import { useAuth } from "../contexts/AuthContext";
 import { ModernCard } from "../components/ModernUI";
 import { ContentManagementService } from "../services/contentManagementService";
@@ -40,7 +40,6 @@ export const ModulesScreen: React.FC<ModulesScreenProps> = ({
 	navigation,
 	route,
 }) => {
-	const { theme } = useTheme();
 	const { user } = useAuth();
 	const { levelId, levelName } = route.params;
 	const [modules, setModules] = useState<Module[]>([]);

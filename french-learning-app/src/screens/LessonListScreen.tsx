@@ -21,6 +21,7 @@ import {
 } from "../types/LessonTypes";
 import { LessonService } from "../services/lessonService";
 import { useAdaptiveDifficulty } from "../hooks/useProgressTracking";
+import { theme } from "../constants/theme";
 
 interface LessonListScreenProps {
 	route: {

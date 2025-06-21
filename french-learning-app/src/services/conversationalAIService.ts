@@ -238,8 +238,12 @@ Text to analyze: "${text}"`;
         const errors = JSON.parse(cleanContent);
         return Array.isArray(errors) ? errors : [];
       } catch (parseError) {
-        console.error('Error parsing grammar check response:', parseError);
-        return [];
+        console.error('Error parsing grammar check response:', parseError, content);
+        // Throw a custom error so the UI can display a user-friendly message
+        throw new Error(
+          'Sorry, there was a problem analyzing your message. (Invalid response from grammar check service.)' +
+            (content ? `\n\nRaw response: ${content}` : '')
+        );
       }
     } catch (error) {
       console.error('Error checking grammar:', error);

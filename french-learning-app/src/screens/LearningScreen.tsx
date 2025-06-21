@@ -101,7 +101,7 @@ export const LearningScreen: React.FC = () => {
 		<ScrollView style={styles.container}>
 			<View style={styles.headerRow}>
 				<Text style={styles.title}>Learning Path</Text>
-				<ThemeSwitchButton />
+				{/* <ThemeSwitchButton /> */}
 			</View>
 			<Text style={styles.subtitle}>
 				Follow the steps below to start your French journey!
