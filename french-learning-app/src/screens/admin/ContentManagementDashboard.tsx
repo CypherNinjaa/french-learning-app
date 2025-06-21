@@ -19,6 +19,7 @@ import { ContentManagementService } from "../../services/contentManagementServic
 import { BulkContentManager } from "../../utils/bulkContentManager";
 import { theme } from "../../constants/theme";
 import { Level, Module, Lesson, Vocabulary, GrammarRule } from "../../types";
+import { supabase } from "../../services/supabase";
 
 interface ContentStats {
 	levels: number;
@@ -27,6 +28,11 @@ interface ContentStats {
 	vocabulary: number;
 	grammarRules: number;
 	questions: number;
+	pronunciationWords: number;
+}
+
+interface Stats extends ContentStats {
+	pronunciationWords: number;
 }
 
 interface RecentActivity {
@@ -49,13 +55,14 @@ export const ContentManagementDashboard = () => {
 	const [bulkLoading, setBulkLoading] = useState(false);
 	const [importData, setImportData] = useState("");
 	const [exportData, setExportData] = useState("");
-	const [stats, setStats] = useState<ContentStats>({
+	const [stats, setStats] = useState<Stats>({
 		levels: 0,
 		modules: 0,
 		lessons: 0,
 		vocabulary: 0,
 		grammarRules: 0,
 		questions: 0,
+		pronunciationWords: 0,
 	});
 	const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
@@ -171,6 +178,7 @@ export const ContentManagementDashboard = () => {
 				vocabRes,
 				grammarRes,
 				questionsRes,
+				pronWordsRes,
 			] = await Promise.all([
 				ContentManagementService.getLevels(),
 				ContentManagementService.getModules(),
@@ -178,6 +186,10 @@ export const ContentManagementDashboard = () => {
 				ContentManagementService.getVocabulary({ limit: 1000 }),
 				ContentManagementService.getGrammarRules(),
 				ContentManagementService.getQuestions(),
+				// New: fetch pronunciation words count using correct supabase client
+				supabase
+					.from("pronunciation_words")
+					.select("id", { count: "exact", head: true }),
 			]);
 
 			setStats({
@@ -187,6 +199,7 @@ export const ContentManagementDashboard = () => {
 				vocabulary: vocabRes.data?.length || 0,
 				grammarRules: grammarRes.data?.length || 0,
 				questions: questionsRes.data?.length || 0,
+				pronunciationWords: pronWordsRes.count || 0,
 			}); // Load recent activity
 			await loadRecentActivity(
 				levelsRes.data || undefined,
@@ -413,6 +426,15 @@ export const ContentManagementDashboard = () => {
 						color="#DDA0DD"
 						icon="❓"
 						onPress={() => navigation.navigate("QuestionsManagement" as never)}
+					/>
+					<StatCard
+						title="Pronunciation Words"
+						count={stats.pronunciationWords || 0}
+						color="#A0E7E5"
+						icon="🔊"
+						onPress={() =>
+							navigation.navigate("PronunciationWordsManagement" as never)
+						}
 					/>
 				</View>
 			</View>

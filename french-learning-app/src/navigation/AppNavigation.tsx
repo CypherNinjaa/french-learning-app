@@ -18,6 +18,7 @@ import { LessonsManagement } from "../screens/admin/LessonsManagement";
 import { VocabularyManagement } from "../screens/admin/VocabularyManagement";
 import { GrammarManagement } from "../screens/admin/GrammarManagement";
 import { QuestionsManagement } from "../screens/admin/QuestionsManagement";
+import { PronunciationWordsManagement } from "../screens/admin/PronunciationWordsManagement";
 import { LessonListScreen } from "../screens/LessonListScreen";
 import { LessonScreen } from "../screens/LessonScreen";
 import { PronunciationTestScreen } from "../screens/PronunciationTestScreen";
@@ -63,6 +64,7 @@ export type AppStackParamList = {
 	VocabularyManagement: undefined;
 	GrammarManagement: undefined;
 	QuestionsManagement: undefined;
+	PronunciationWordsManagement: undefined;
 
 	// Learning & Practice
 	Levels: undefined;
@@ -139,6 +141,10 @@ const AppNavigator: React.FC = () => {
 			<AppStack.Screen
 				name="QuestionsManagement"
 				component={QuestionsManagement}
+			/>
+			<AppStack.Screen
+				name="PronunciationWordsManagement"
+				component={PronunciationWordsManagement}
 			/>
 
 			{/* Detail screens accessible from anywhere */}
