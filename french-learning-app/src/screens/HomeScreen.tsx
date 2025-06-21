@@ -6,11 +6,10 @@ import {
 	StyleSheet,
 	SafeAreaView,
 	ScrollView,
+	Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
-import { useTheme } from "../contexts/ThemeContext";
-import { ModernButton, ModernCard } from "../components/ModernUI";
 import { theme } from "../constants/theme";
 
 interface HomeScreenProps {
@@ -19,373 +18,217 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 	const { user, signOut, isAdmin } = useAuth();
-	const { theme: currentTheme, isDark, toggleTheme } = useTheme();
+	const currentTheme = theme;
 
-	const handleSignOut = async () => {
-		try {
-			await signOut();
-		} catch (error) {
-			console.error("Sign out error:", error);
-		}
-	};
-
-	const learningOptions = [
-		{
-			title: "Start Learning",
-			description: "Begin your French journey",
-			icon: "play-circle" as keyof typeof Ionicons.glyphMap,
-			color: currentTheme.colors.primary,
-			onPress: () => navigation.navigate("Learning"), // Changed to navigate to the Learning tab
-		},
-		{
-			title: "AI Conversation Partner",
-			description: "Practice with AI chatbot",
-			icon: "chatbubbles" as keyof typeof Ionicons.glyphMap,
-			color: currentTheme.colors.conversation,
-			onPress: () => navigation.navigate("ConversationalAI"),
-		},
-		{
-			title: "Practice Pronunciation",
-			description: "Improve your speaking",
-			icon: "mic" as keyof typeof Ionicons.glyphMap,
-			color: currentTheme.colors.pronunciation,
-			onPress: () => navigation.navigate("PronunciationTest"),
-		},
-		{
-			title: "Vocabulary Practice",
-			description: "Learn new words",
-			icon: "library" as keyof typeof Ionicons.glyphMap,
-			color: currentTheme.colors.success,
-			onPress: () => navigation.navigate("Vocabulary"),
-		},
-		{
-			title: "Personalized Learning",
-			description: "Adaptive learning path",
-			icon: "school" as keyof typeof Ionicons.glyphMap,
-			color: currentTheme.colors.secondary,
-			onPress: () => navigation.navigate("PersonalizedLearning"),
-		},
-		{
-			title: "🎮 Gamification",
-			description: "Track achievements & streaks",
-			icon: "trophy" as keyof typeof Ionicons.glyphMap,
-			color: currentTheme.colors.warning,
-			onPress: () => navigation.navigate("Gamification"),
-		},
-	];
-
-	const quickActions = [
-		{
-			title: "View Profile",
-			icon: "person" as keyof typeof Ionicons.glyphMap,
-			onPress: () => navigation.navigate("Profile"),
-		},
-		{
-			title: "Progress",
-			icon: "stats-chart" as keyof typeof Ionicons.glyphMap,
-			onPress: () => navigation.navigate("Progress"),
-		},
-		{
-			title: "Settings",
-			icon: "settings" as keyof typeof Ionicons.glyphMap,
-			onPress: () => navigation.navigate("ThemeSettings"),
-		},
-	];
+	const avatar = user?.avatarUrl ? (
+		<Image source={{ uri: user.avatarUrl }} style={styles.avatarLarge} />
+	) : (
+		<View style={styles.avatarLargePlaceholder}>
+			<Text style={styles.avatarInitialsLarge}>
+				{user?.username?.[0]?.toUpperCase() || "👤"}
+			</Text>
+		</View>
+	);
 
 	return (
 		<SafeAreaView
-			style={[
-				styles.container,
-				{ backgroundColor: currentTheme.colors.background },
-			]}
+			style={{ flex: 1, backgroundColor: currentTheme.colors.background }}
 		>
-			{/* Header */}
-			<View
-				style={[
-					styles.header,
-					{ backgroundColor: currentTheme.colors.surface },
-				]}
-			>
-				<View style={styles.headerContent}>
-					<View style={styles.welcomeSection}>
-						<Text
-							style={[styles.welcomeText, { color: currentTheme.colors.text }]}
-						>
-							Bonjour! 👋
-						</Text>
-						<Text
-							style={[
-								styles.usernameText,
-								{ color: currentTheme.colors.textSecondary },
-							]}
-						>
-							{user?.username || user?.email}
-						</Text>
-					</View>
-
-					<View style={styles.headerActions}>
-						<TouchableOpacity
-							style={[
-								styles.themeToggle,
-								{ backgroundColor: currentTheme.colors.surfaceSecondary },
-							]}
-							onPress={toggleTheme}
-						>
-							<Ionicons
-								name={isDark ? "sunny" : "moon"}
-								size={20}
-								color={currentTheme.colors.primary}
-							/>
-						</TouchableOpacity>
-
-						<TouchableOpacity
-							style={[
-								styles.settingsButton,
-								{ backgroundColor: currentTheme.colors.surfaceSecondary },
-							]}
-							onPress={() => navigation.navigate("ThemeSettings")}
-						>
-							<Ionicons
-								name="settings"
-								size={20}
-								color={currentTheme.colors.primary}
-							/>
-						</TouchableOpacity>
-					</View>
+			{/* Banner Header */}
+			<View style={styles.banner}>
+				{avatar}
+				<View style={{ flex: 1 }}>
+					<Text style={styles.greetingText}>
+						Bonjour{user?.username ? ", " : "!"}
+						{user?.username?.split(" ")[0] ||
+							user?.email?.split("@")[0] ||
+							"!"}{" "}
+						👋
+					</Text>
+					<Text style={styles.greetingSubText}>
+						Ready to learn something new today?
+					</Text>
 				</View>
 			</View>
 
-			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-				{/* Stats Cards */}
-				<View style={styles.statsContainer}>
-					<ModernCard style={styles.statCard}>
-						<Text
-							style={[
-								styles.statNumber,
-								{ color: currentTheme.colors.primary },
-							]}
-						>
-							{user?.points || 0}
-						</Text>
-						<Text
-							style={[
-								styles.statLabel,
-								{ color: currentTheme.colors.textSecondary },
-							]}
-						>
-							Points
-						</Text>
-					</ModernCard>
+			{/* Main Actions */}
+			<View style={styles.mainActionsRow}>
+				<TouchableOpacity
+					style={[
+						styles.mainActionButton,
+						{ backgroundColor: currentTheme.colors.primary },
+					]}
+					onPress={() => navigation.navigate("Learning")}
+				>
+					<Ionicons name="play-circle" size={28} color="#fff" />
+					<Text style={styles.mainActionText}>Start Learning</Text>
+				</TouchableOpacity>
+				<TouchableOpacity
+					style={[
+						styles.mainActionButton,
+						{ backgroundColor: currentTheme.colors.conversation },
+					]}
+					onPress={() => navigation.navigate("ConversationalAI")}
+				>
+					<Ionicons name="chatbubbles" size={28} color="#fff" />
+					<Text style={styles.mainActionText}>AI Chat</Text>
+				</TouchableOpacity>
+				<TouchableOpacity
+					style={[
+						styles.mainActionButton,
+						{ backgroundColor: currentTheme.colors.success },
+					]}
+					onPress={() => navigation.navigate("Practice")}
+				>
+					<Ionicons name="rocket" size={28} color="#fff" />
+					<Text style={styles.mainActionText}>Practice</Text>
+				</TouchableOpacity>
+			</View>
 
-					<ModernCard style={styles.statCard}>
-						<Text
-							style={[
-								styles.statNumber,
-								{ color: currentTheme.colors.success },
-							]}
-						>
-							{user?.streakDays || 0}
-						</Text>
-						<Text
-							style={[
-								styles.statLabel,
-								{ color: currentTheme.colors.textSecondary },
-							]}
-						>
-							Day Streak
-						</Text>
-					</ModernCard>
-				</View>
-
-				{/* Beginner Learning Flow */}
-				{user?.level === "beginner" && (
-					<View style={styles.section}>
-						<Text
-							style={[styles.sectionTitle, { color: currentTheme.colors.text }]}
-						>
-							Start Your French Journey
-						</Text>
-						<ModernCard
-							style={styles.learningCard}
-							onPress={() => navigation.navigate("Learning")}
-						>
-							<View
-								style={[
-									styles.iconContainer,
-									{ backgroundColor: `${currentTheme.colors.primary}20` },
-								]}
-							>
-								<Ionicons
-									name="play-circle"
-									size={32}
-									color={currentTheme.colors.primary}
-								/>
-							</View>
-							<Text
-								style={[styles.cardTitle, { color: currentTheme.colors.text }]}
-							>
-								Start Learning
-							</Text>
-							<Text
-								style={[
-									styles.cardDescription,
-									{ color: currentTheme.colors.textSecondary },
-								]}
-							>
-								Begin with guided lessons designed for absolute beginners.
-							</Text>
-						</ModernCard>
-						<ModernCard
-							style={styles.learningCard}
-							onPress={() => navigation.navigate("Vocabulary")}
-						>
-							<View
-								style={[
-									styles.iconContainer,
-									{ backgroundColor: `${currentTheme.colors.success}20` },
-								]}
-							>
-								<Ionicons
-									name="library"
-									size={32}
-									color={currentTheme.colors.success}
-								/>
-							</View>
-							<Text
-								style={[styles.cardTitle, { color: currentTheme.colors.text }]}
-							>
-								Vocabulary Practice
-							</Text>
-							<Text
-								style={[
-									styles.cardDescription,
-									{ color: currentTheme.colors.textSecondary },
-								]}
-							>
-								Learn essential French words and phrases.
-							</Text>
-						</ModernCard>
-						<ModernCard
-							style={styles.learningCard}
-							onPress={() => navigation.navigate("PronunciationTest")}
-						>
-							<View
-								style={[
-									styles.iconContainer,
-									{ backgroundColor: `${currentTheme.colors.pronunciation}20` },
-								]}
-							>
-								<Ionicons
-									name="mic"
-									size={32}
-									color={currentTheme.colors.pronunciation}
-								/>
-							</View>
-							<Text
-								style={[styles.cardTitle, { color: currentTheme.colors.text }]}
-							>
-								Practice Pronunciation
-							</Text>
-							<Text
-								style={[
-									styles.cardDescription,
-									{ color: currentTheme.colors.textSecondary },
-								]}
-							>
-								Improve your speaking and listening skills.
-							</Text>
-						</ModernCard>
-					</View>
-				)}
-
-				{/* Only show Quick Actions for non-beginners */}
-				{user?.level !== "beginner" && (
-					<View style={styles.section}>
-						<Text
-							style={[styles.sectionTitle, { color: currentTheme.colors.text }]}
-						>
-							Quick Actions
-						</Text>
-						<View style={styles.quickActionsRow}>
-							{quickActions.map((action, index) => (
-								<ModernCard
-									key={index}
-									style={styles.quickActionCard}
-									onPress={action.onPress}
-								>
-									<Ionicons
-										name={action.icon}
-										size={24}
-										color={currentTheme.colors.primary}
-									/>
-									<Text
-										style={[
-											styles.quickActionText,
-											{ color: currentTheme.colors.text },
-										]}
-									>
-										{action.title}
-									</Text>
-								</ModernCard>
-							))}
-						</View>
-					</View>
-				)}
-
-				{/* Development/Testing Options */}
-				<View style={styles.section}>
+			{/* Stats Pills */}
+			<View style={styles.statsPillsRow}>
+				<View
+					style={[
+						styles.statPill,
+						{ backgroundColor: `${currentTheme.colors.primary}15` },
+					]}
+				>
+					<Ionicons name="star" size={16} color={currentTheme.colors.primary} />
 					<Text
-						style={[styles.sectionTitle, { color: currentTheme.colors.text }]}
+						style={[
+							styles.statPillText,
+							{ color: currentTheme.colors.primary },
+						]}
 					>
-						Development & Testing
+						{user?.points || 0} pts
 					</Text>
-					<ModernButton
-						title="🧪 Conversational AI Test"
-						variant="outline"
-						onPress={() => navigation.navigate("ConversationalAITest")}
-						style={styles.testButton}
+				</View>
+				<View
+					style={[
+						styles.statPill,
+						{ backgroundColor: `${currentTheme.colors.success}15` },
+					]}
+				>
+					<Ionicons
+						name="flame"
+						size={16}
+						color={currentTheme.colors.success}
 					/>
-					<ModernButton
-						title="🧑‍💻 AI Features Test"
-						variant="outline"
-						onPress={() => navigation.navigate("AITest")}
-						style={styles.testButton}
+					<Text
+						style={[
+							styles.statPillText,
+							{ color: currentTheme.colors.success },
+						]}
+					>
+						{user?.streakDays || 0} day streak
+					</Text>
+				</View>
+				<View
+					style={[
+						styles.statPill,
+						{ backgroundColor: `${currentTheme.colors.secondary}15` },
+					]}
+				>
+					<Ionicons
+						name="school"
+						size={16}
+						color={currentTheme.colors.secondary}
 					/>
-					{isAdmin() && (
-						<ModernButton
-							title="👑 Admin Panel"
-							variant="primary"
-							icon="shield-checkmark"
-							onPress={() => navigation.getParent()?.navigate("AdminDashboard")}
-							style={styles.testButton}
-						/>
-					)}
-					{isAdmin() && (
-						<ModernButton
-							title="📚 Content Management"
-							variant="primary"
-							icon="folder"
-							onPress={() =>
-								navigation.getParent()?.navigate("ContentManagementDashboard")
+					<Text
+						style={[
+							styles.statPillText,
+							{ color: currentTheme.colors.secondary },
+						]}
+					>
+						{user?.level
+							? user.level.charAt(0).toUpperCase() + user.level.slice(1)
+							: "-"}
+					</Text>
+				</View>
+			</View>
+
+			{/* Minimal Quick Actions */}
+			<View style={styles.quickRow}>
+				<TouchableOpacity
+					style={styles.quickAction}
+					onPress={() => navigation.navigate("Profile")}
+				>
+					<Ionicons
+						name="person"
+						size={20}
+						color={currentTheme.colors.primary}
+					/>
+					<Text style={styles.quickActionText}>Profile</Text>
+				</TouchableOpacity>
+				<TouchableOpacity
+					style={styles.quickAction}
+					onPress={() => navigation.navigate("Progress")}
+				>
+					<Ionicons
+						name="stats-chart"
+						size={20}
+						color={currentTheme.colors.success}
+					/>
+					<Text style={styles.quickActionText}>Progress</Text>
+				</TouchableOpacity>
+				<TouchableOpacity
+					style={styles.quickAction}
+					onPress={() => navigation.navigate("ThemeSettings")}
+				>
+					<Ionicons
+						name="settings"
+						size={20}
+						color={currentTheme.colors.warning}
+					/>
+					<Text style={styles.quickActionText}>Settings</Text>
+				</TouchableOpacity>
+			</View>
+			{isAdmin() && (
+				<View style={{ alignItems: "center", marginBottom: 18 }}>
+					<TouchableOpacity
+						style={[
+							styles.mainActionButton,
+							{ backgroundColor: currentTheme.colors.warning, width: "90%" },
+						]}
+						onPress={() => {
+							if (isAdmin()) {
+								navigation.navigate("AdminDashboard");
+							} else {
+								alert("Access denied: Admins only.");
 							}
-							style={styles.testButton}
-						/>
-					)}
-				</View>
-				{/* Sign Out */}
-				<View style={styles.signOutContainer}>
-					<ModernButton
-						title="Sign Out"
-						variant="ghost"
-						icon="log-out"
-						onPress={handleSignOut}
-						style={{
-							...styles.signOutButton,
-							borderColor: currentTheme.colors.error,
 						}}
-					/>
+					>
+						<Ionicons name="shield-checkmark" size={24} color="#fff" />
+						<Text style={styles.mainActionText}>Admin Dashboard</Text>
+					</TouchableOpacity>
 				</View>
-			</ScrollView>
+			)}
+
+			{/* Sign Out
+			<View style={styles.signOutContainer}>
+				<TouchableOpacity
+					style={[
+						styles.signOutButton,
+						{ borderColor: currentTheme.colors.error },
+					]}
+					onPress={signOut}
+				>
+					<Ionicons
+						name="log-out"
+						size={20}
+						color={currentTheme.colors.error}
+					/>
+					<Text
+						style={{
+							color: currentTheme.colors.error,
+							fontWeight: "700",
+							marginLeft: 8,
+						}}
+					>
+						Sign Out
+					</Text>
+				</TouchableOpacity>
+			</View> */}
 		</SafeAreaView>
 	);
 };
@@ -394,132 +237,108 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 	},
-	header: {
-		paddingVertical: 16,
+	banner: {
+		flexDirection: "row",
+		alignItems: "center",
 		paddingHorizontal: 20,
-		...theme.shadows.sm,
+		paddingTop: 32,
+		paddingBottom: 18,
+		backgroundColor: "#f3f6ff",
+		borderBottomLeftRadius: 32,
+		borderBottomRightRadius: 32,
+		marginBottom: 10,
 	},
-	headerContent: {
-		flexDirection: "row",
+	avatarLarge: {
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+		marginRight: 18,
+		backgroundColor: "#e0e0e0",
 		alignItems: "center",
-		justifyContent: "space-between",
+		justifyContent: "center",
 	},
-	welcomeSection: {
-		flex: 1,
+	avatarLargePlaceholder: {
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+		backgroundColor: "#e0e0e0",
+		alignItems: "center",
+		justifyContent: "center",
+		marginRight: 18,
 	},
-	welcomeText: {
-		fontSize: 24,
+	avatarInitialsLarge: {
+		fontSize: 28,
 		fontWeight: "700",
-		marginBottom: 4,
+		color: "#888",
 	},
-	usernameText: {
-		fontSize: 16,
-		fontWeight: "400",
-	},
-	headerActions: {
-		flexDirection: "row",
-		gap: 12,
-	},
-	themeToggle: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	settingsButton: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	content: {
-		flex: 1,
-		padding: 20,
-	},
-	statsContainer: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		marginBottom: 24,
-		gap: 12,
-	},
-	statCard: {
-		flex: 1,
-		alignItems: "center",
-		paddingVertical: 20,
-	},
-	statNumber: {
-		fontSize: 24,
+	greetingText: {
+		fontSize: 22,
 		fontWeight: "700",
-		marginBottom: 4,
+		marginBottom: 2,
 	},
-	statLevel: {
-		fontSize: 13, // Decreased from 16
-		fontWeight: "500", // Slightly lighter
-		marginBottom: 4,
-		textTransform: "capitalize",
-	},
-	statLabel: {
+	greetingSubText: {
 		fontSize: 14,
-		fontWeight: "400",
+		color: "#888",
+		marginBottom: 2,
 	},
-	section: {
-		marginBottom: 24,
-	},
-	sectionTitle: {
-		fontSize: 20,
-		fontWeight: "600",
-		marginBottom: 16,
-	},
-	learningGrid: {
-		flexDirection: "row",
-		flexWrap: "wrap",
-		gap: 12,
-	},
-	learningCard: {
-		padding: 20,
-		alignItems: "center",
-		minHeight: 120,
-		marginBottom: 12,
-	},
-	iconContainer: {
-		width: 56,
-		height: 56,
-		borderRadius: 28,
-		alignItems: "center",
-		justifyContent: "center",
-		marginBottom: 12,
-	},
-	cardTitle: {
-		fontSize: 16,
-		fontWeight: "600",
-		marginBottom: 4,
-		textAlign: "center",
-	},
-	cardDescription: {
-		fontSize: 14,
-		textAlign: "center",
-	},
-	quickActionsRow: {
+	mainActionsRow: {
 		flexDirection: "row",
 		justifyContent: "space-between",
-		gap: 12,
+		marginHorizontal: 18,
+		marginBottom: 18,
 	},
-	quickActionCard: {
+	mainActionButton: {
 		flex: 1,
+		marginHorizontal: 6,
+		borderRadius: 18,
+		paddingVertical: 22,
 		alignItems: "center",
-		paddingVertical: 16,
-		paddingHorizontal: 8,
+		justifyContent: "center",
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.06,
+		shadowRadius: 2,
+		elevation: 1,
+	},
+	mainActionText: {
+		color: "#fff",
+		fontWeight: "700",
+		fontSize: 15,
+		marginTop: 8,
+	},
+	statsPillsRow: {
+		flexDirection: "row",
+		justifyContent: "center",
+		marginBottom: 18,
+		gap: 10,
+	},
+	statPill: {
+		flexDirection: "row",
+		alignItems: "center",
+		borderRadius: 20,
+		paddingHorizontal: 16,
+		paddingVertical: 7,
+		marginHorizontal: 4,
+	},
+	statPillText: {
+		fontSize: 13,
+		fontWeight: "600",
+		marginLeft: 6,
+	},
+	quickRow: {
+		flexDirection: "row",
+		justifyContent: "space-around",
+		marginBottom: 18,
+	},
+	quickAction: {
+		alignItems: "center",
+		padding: 10,
 	},
 	quickActionText: {
 		fontSize: 12,
 		fontWeight: "500",
-		marginTop: 8,
-		textAlign: "center",
-	},
-	testButton: {
-		marginBottom: 12,
+		marginTop: 4,
+		color: "#444",
 	},
 	signOutContainer: {
 		marginTop: 20,

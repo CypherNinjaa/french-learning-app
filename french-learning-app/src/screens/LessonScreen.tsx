@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { DynamicLessonRenderer } from "../components/lesson/DynamicLessonRenderer";
+import { theme } from "../constants/theme";
 
 interface LessonScreenProps {
 	route: {

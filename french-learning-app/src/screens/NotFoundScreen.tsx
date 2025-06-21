@@ -1,12 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { ModernButton } from "../components/ModernUI";
-import { useTheme } from "../contexts/ThemeContext";
+import { theme } from "../constants/theme";
 
 export const NotFoundScreen: React.FC<{ navigation?: any }> = ({
 	navigation,
 }) => {
-	const { theme } = useTheme();
 	return (
 		<View
 			style={[styles.container, { backgroundColor: theme.colors.background }]}

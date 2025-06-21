@@ -85,7 +85,7 @@ export const PracticeScreen: React.FC = () => {
 		<View style={styles.container}>
 			<View style={styles.headerRow}>
 				<Text style={styles.title}>Practice & AI</Text>
-				<ThemeSwitchButton />
+				{/* <ThemeSwitchButton /> */}
 			</View>
 			<Text style={styles.subtitle}>
 				Access AI tools, quizzes features here.
