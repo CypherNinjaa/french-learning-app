@@ -14,10 +14,6 @@ import { theme as lightTheme, darkTheme, Theme } from "../constants/theme";
 
 interface ThemeContextValue {
 	theme: Theme;
-	isDark: boolean;
-	toggleTheme: () => void;
-	setTheme: (mode: "light" | "dark" | "system") => void;
-	themeMode: "light" | "dark" | "system";
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -80,17 +76,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 		saveThemePreference(mode);
 	};
 
-	const toggleTheme = () => {
-		const newMode = isDark ? "light" : "dark";
-		setTheme(newMode);
-	};
-
 	const value: ThemeContextValue = {
 		theme: currentTheme,
-		isDark,
-		toggleTheme,
-		setTheme,
-		themeMode,
 	};
 
 	return (
