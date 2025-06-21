@@ -22,14 +22,24 @@ export const LessonScreen: React.FC<LessonScreenProps> = ({
 	navigation,
 }) => {
 	const { lessonId, userId, lessonTitle } = route.params;
-
 	const handleLessonComplete = (score: number, timeSpent: number) => {
-		// Only navigate back, do not show duplicate Alert
-		navigation.goBack();
+		// Safe navigation back with fallback
+		if (navigation.canGoBack()) {
+			navigation.goBack();
+		} else {
+			// Fallback to Learning tab if no back stack
+			navigation.navigate("MainTabs", { screen: "Learning" });
+		}
 	};
 
 	const handleExit = () => {
-		navigation.goBack();
+		// Safe navigation back with fallback
+		if (navigation.canGoBack()) {
+			navigation.goBack();
+		} else {
+			// Fallback to Learning tab if no back stack
+			navigation.navigate("MainTabs", { screen: "Learning" });
+		}
 	};
 
 	return (

@@ -33,43 +33,44 @@ export const LearningScreen: React.FC = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [gamification, setGamification] = useState<any>(null);
 
-	useEffect(() => {
-		const fetchLearningContent = async () => {
-			if (!user?.id) return;
-			setLoading(true);
-			setError(null);
-			try {
-				const modulesRes = await ContentManagementService.getModules();
-				if (!modulesRes.success || !modulesRes.data)
-					throw new Error(modulesRes.error || "Failed to load modules");
-				setModules(modulesRes.data);
+	const fetchLearningContent = async () => {
+		if (!user?.id) return;
+		setLoading(true);
+		setError(null);
+		try {
+			const modulesRes = await ContentManagementService.getModules();
+			if (!modulesRes.success || !modulesRes.data)
+				throw new Error(modulesRes.error || "Failed to load modules");
+			setModules(modulesRes.data);
 
-				const lessonsMap: { [key: number]: Lesson[] } = {};
-				const progressMap: { [key: number]: UserProgress } = {};
+			const lessonsMap: { [key: number]: Lesson[] } = {};
+			const progressMap: { [key: number]: UserProgress } = {};
 
-				for (const mod of modulesRes.data) {
-					const { lessons, progress } = await LessonService.getLessonsByModule(
-						mod.id,
-						user.id
-					);
-					lessonsMap[mod.id] = lessons;
-					progress.forEach((p) => {
-						progressMap[p.lesson_id] = p;
-					});
-				}
-				setLessonsByModule(lessonsMap);
-				setProgressByLesson(progressMap);
-
-				// Fetch gamification stats
-				const gamificationStats =
-					await ProgressTrackingService.getProgressAnalytics(user.id);
-				setGamification(gamificationStats);
-			} catch (err: any) {
-				setError(err.message || "An error occurred");
-			} finally {
-				setLoading(false);
+			for (const mod of modulesRes.data) {
+				const { lessons, progress } = await LessonService.getLessonsByModule(
+					mod.id,
+					user.id
+				);
+				lessonsMap[mod.id] = lessons;
+				progress.forEach((p) => {
+					progressMap[p.lesson_id] = p;
+				});
 			}
-		};
+			setLessonsByModule(lessonsMap);
+			setProgressByLesson(progressMap);
+
+			// Fetch gamification stats
+			const gamificationStats =
+				await ProgressTrackingService.getProgressAnalytics(user.id);
+			setGamification(gamificationStats);
+		} catch (err: any) {
+			setError(err.message || "An error occurred");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	useEffect(() => {
 		fetchLearningContent();
 	}, [user?.id]);
 
@@ -164,7 +165,6 @@ export const LearningScreen: React.FC = () => {
 						</TouchableOpacity>
 					</View>
 				</View>
-
 				{/* Enhanced Stats Dashboard */}
 				{gamification && (
 					<View style={styles.statsSection}>
@@ -174,10 +174,8 @@ export const LearningScreen: React.FC = () => {
 								<View style={styles.statIconContainer}>
 									<Ionicons name="star" size={24} color="#FFD700" />
 								</View>
-								<Text style={styles.statNumber}>
-									{gamification.points_earned_today ?? 0}
-								</Text>
-								<Text style={styles.statLabel}>Points Today</Text>
+								<Text style={styles.statNumber}>{user?.points ?? 0}</Text>
+								<Text style={styles.statLabel}>Points</Text>
 							</View>
 							<View style={styles.statCard}>
 								<View style={styles.statIconContainer}>
@@ -200,7 +198,6 @@ export const LearningScreen: React.FC = () => {
 						</View>
 					</View>
 				)}
-
 				{/* Loading State */}
 				{loading && (
 					<View style={styles.loadingContainer}>
@@ -208,19 +205,26 @@ export const LearningScreen: React.FC = () => {
 						<Text style={styles.loadingText}>Loading your lessons...</Text>
 					</View>
 				)}
-
 				{/* Error State */}
 				{error && (
 					<View style={styles.errorContainer}>
 						<Ionicons name="alert-circle" size={48} color="#F44336" />
 						<Text style={styles.errorTitle}>Oops! Something went wrong</Text>
 						<Text style={styles.errorMessage}>{error}</Text>
-						<TouchableOpacity style={styles.retryButton}>
+						<TouchableOpacity
+							style={styles.retryButton}
+							onPress={() => {
+								setError(null);
+								// Trigger a refresh by calling the fetch function again
+								if (user?.id) {
+									fetchLearningContent();
+								}
+							}}
+						>
 							<Text style={styles.retryButtonText}>Try Again</Text>
 						</TouchableOpacity>
 					</View>
 				)}
-
 				{/* Modules and Lessons */}
 				{!loading && !error && (
 					<View style={styles.modulesSection}>
@@ -308,8 +312,7 @@ export const LearningScreen: React.FC = () => {
 																			color="#666"
 																		/>
 																		<Text style={styles.lessonMetaText}>
-																			{lesson.estimated_time_minutes || 15}
-																			min
+																			{lesson.estimated_duration || 15} min
 																		</Text>
 																	</View>
 																	<View
@@ -366,7 +369,6 @@ export const LearningScreen: React.FC = () => {
 						)}
 					</View>
 				)}
-
 				<View style={{ height: 100 }} />
 			</ScrollView>
 		</SafeAreaView>
