@@ -15,6 +15,9 @@ import {
 	PronunciationButton,
 } from "../components/pronunciation/PronunciationPlayer";
 import { theme } from "../constants/theme";
+import { LoadingState } from "../components/LoadingState";
+import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
 
 interface PronunciationTestScreenProps {
 	navigation: any;
@@ -26,6 +29,7 @@ export const PronunciationTestScreen: React.FC<
 	const [selectedVariant, setSelectedVariant] = useState<
 		"primary" | "secondary" | "minimal"
 	>("primary");
+	const [error, setError] = useState<string | null>(null);
 
 	const testWords = [
 		"Bonjour",
@@ -44,11 +48,33 @@ export const PronunciationTestScreen: React.FC<
 
 	const handlePronunciationError = (error: any) => {
 		console.error("Pronunciation error:", error);
+		setError(
+			"Unable to play pronunciation. Please check your device settings."
+		);
 		Alert.alert(
 			"Error",
 			"Unable to play pronunciation. Please check your device settings."
 		);
 	};
+
+	if (error) {
+		return (
+			<ErrorState
+				title="Pronunciation Error"
+				description={error}
+				onRetry={() => setError(null)}
+			/>
+		);
+	}
+
+	if (testWords.length === 0) {
+		return (
+			<EmptyState
+				title="No Test Words"
+				description="No test words available for pronunciation. Please check back later!"
+			/>
+		);
+	}
 
 	return (
 		<SafeAreaView style={styles.container}>
