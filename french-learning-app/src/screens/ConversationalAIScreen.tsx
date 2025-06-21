@@ -270,6 +270,14 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 					title="No Conversation Started"
 					description="Start a new conversation to practice your French with AI!"
 				/>
+				<View style={{ alignItems: "center", marginTop: 24 }}>
+					<TouchableOpacity
+						style={styles.startButton}
+						onPress={handleStartConversation}
+					>
+						<Text style={styles.startButtonText}>Start Conversation</Text>
+					</TouchableOpacity>
+				</View>
 			</SafeAreaView>
 		);
 	}
@@ -535,18 +543,24 @@ const styles = StyleSheet.create({
 	},
 	startButton: {
 		backgroundColor: theme.colors.primary,
-		paddingVertical: theme.spacing.md,
-		borderRadius: theme.borderRadius.medium,
-		alignItems: "center",
-		marginTop: theme.spacing.lg,
+		borderRadius: 8,
+		paddingVertical: 14,
+		paddingHorizontal: 36,
+		marginTop: 8,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.12,
+		shadowRadius: 4,
+		elevation: 2,
 	},
 	disabledButton: {
 		backgroundColor: theme.colors.textSecondary,
 	},
 	startButtonText: {
+		color: "#fff",
+		fontWeight: "700",
 		fontSize: 16,
-		fontWeight: "600",
-		color: "white",
+		letterSpacing: 0.5,
 	},
 	errorContainer: {
 		flexDirection: "row",
