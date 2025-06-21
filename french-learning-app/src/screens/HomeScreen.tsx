@@ -188,7 +188,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 					<TouchableOpacity
 						style={[
 							styles.mainActionButton,
-							{ backgroundColor: currentTheme.colors.warning, width: "90%" },
+							{
+								backgroundColor: "#FFD600", // Bright yellow
+								width: "92%",
+								borderWidth: 0,
+								borderColor: "transparent",
+								shadowColor: "#000",
+								shadowOffset: { width: 0, height: 1 },
+								shadowOpacity: 0.08,
+								shadowRadius: 2,
+								elevation: 1,
+							},
 						]}
 						onPress={() => {
 							if (isAdmin()) {
@@ -198,8 +208,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 							}
 						}}
 					>
-						<Ionicons name="shield-checkmark" size={24} color="#fff" />
-						<Text style={styles.mainActionText}>Admin Dashboard</Text>
+						<Ionicons name="shield-checkmark" size={26} color="#222" />
+						<Text
+							style={[
+								styles.mainActionText,
+								{
+									color: "#222",
+									fontWeight: "bold",
+									fontSize: 18,
+									letterSpacing: 1,
+								},
+							]}
+						>
+							Admin Dashboard
+						</Text>
 					</TouchableOpacity>
 				</View>
 			)}
