@@ -38,7 +38,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
 			<View style={styles.previewSection}>
 				<Text style={styles.sectionTitle}>Description</Text>
 				<Text style={styles.sectionContent}>{lesson.description}</Text>
-			</View>{" "}
+			</View>
 			<View style={styles.previewSection}>
 				<Text style={styles.sectionTitle}>Type</Text>
 				<Text style={styles.sectionContent}>{lesson.lesson_type}</Text>
@@ -92,7 +92,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
 					<Text style={styles.sectionTitle}>Gender</Text>
 					<Text style={styles.sectionContent}>{vocabulary.gender}</Text>
 				</View>
-			)}{" "}
+			)}
 			<View style={styles.previewSection}>
 				<Text style={styles.sectionTitle}>Difficulty</Text>
 				<Text style={styles.sectionContent}>{vocabulary.difficulty_level}</Text>
@@ -118,7 +118,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
 			<View style={styles.previewSection}>
 				<Text style={styles.sectionTitle}>Category</Text>
 				<Text style={styles.sectionContent}>{grammar.category}</Text>
-			</View>{" "}
+			</View>
 			<View style={styles.previewSection}>
 				<Text style={styles.sectionTitle}>Difficulty</Text>
 				<Text style={styles.sectionContent}>{grammar.difficulty_level}</Text>
@@ -126,7 +126,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
 			<View style={styles.previewSection}>
 				<Text style={styles.sectionTitle}>Rule</Text>
 				<Text style={styles.sectionContent}>{grammar.explanation}</Text>
-			</View>{" "}
+			</View>
 			{grammar.explanation && (
 				<View style={styles.previewSection}>
 					<Text style={styles.sectionTitle}>Explanation</Text>
@@ -160,7 +160,7 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
 			<View style={styles.previewSection}>
 				<Text style={styles.sectionTitle}>Difficulty</Text>
 				<Text style={styles.sectionContent}>{question.difficulty_level}</Text>
-			</View>{" "}
+			</View>
 			{question.options && question.options.length > 0 && (
 				<View style={styles.previewSection}>
 					<Text style={styles.sectionTitle}>Options</Text>

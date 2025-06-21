@@ -131,7 +131,6 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({
 			<View
 				style={[styles.modalOverlay, { backgroundColor: theme.colors.overlay }]}
 			>
-				{" "}
 				<ModernCard
 					style={
 						[
@@ -211,7 +210,7 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({
 							<Text style={[styles.detailValue, { color: theme.colors.text }]}>
 								{achievement.achievement_type}
 							</Text>
-						</View>{" "}
+						</View>
 						{!isUnlocked && (
 							<View style={styles.achievementProgressSection}>
 								<Text
@@ -629,7 +628,7 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
 					height={12}
 					color={getLevelColor(level)}
 					style={styles.levelProgressBar}
-				/>{" "}
+				/>
 				<View style={styles.progressLabels}>
 					<Text
 						style={[

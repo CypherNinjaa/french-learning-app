@@ -225,7 +225,7 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 					>
 						<Ionicons name="warning" size={16} color={theme.colors.warning} />
 						<Text style={styles.grammarIndicatorText}>
-							{message.grammarErrors.length} grammar{" "}
+							{message.grammarErrors.length} grammar
 							{message.grammarErrors.length === 1 ? "issue" : "issues"}
 						</Text>
 					</TouchableOpacity>

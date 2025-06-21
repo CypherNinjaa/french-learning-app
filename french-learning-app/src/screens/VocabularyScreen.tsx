@@ -193,7 +193,7 @@ export const VocabularyScreen: React.FC<VocabularyScreenProps> = ({
 						<Text style={styles.masteryText}>
 							{getMasteryLabel(item.mastery_level || 0)}
 						</Text>
-					</View>{" "}
+					</View>
 					<TouchableOpacity
 						style={styles.pronunciationButton}
 						onPress={() => SpeechService.speakFrench(item.french_word)}

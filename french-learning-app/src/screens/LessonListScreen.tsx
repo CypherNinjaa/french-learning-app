@@ -266,10 +266,12 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 
 	const renderHeader = () => (
 		<View style={styles.header}>
-			<Text style={styles.moduleTitle}>{moduleName}</Text>{" "}
+			<Text style={styles.moduleTitle}>{moduleName}</Text>
 			<Text style={styles.moduleSubtitle}>
-				{lessons.length} lessons •{" "}
-				{lessons.filter((l) => l.userProgress?.status === "completed").length}{" "}
+				{lessons.length} lessons
+				{
+					lessons.filter((l) => l.userProgress?.status === "completed").length
+				}{" "}
 				completed
 			</Text>
 			{recommendedDifficulty && (
