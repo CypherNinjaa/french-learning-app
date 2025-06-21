@@ -13,6 +13,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { usePersonalizedLearning } from "../hooks/usePersonalizedLearning";
 import { theme } from "../constants/theme";
+import { LoadingState } from "../components/LoadingState";
+import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
 
 interface PersonalizedLearningScreenProps {
 	navigation: any;
@@ -404,6 +407,94 @@ export const PersonalizedLearningScreen: React.FC<
 			</TouchableOpacity>
 		</View>
 	);
+
+	if (profileLoading && selectedTab === "profile") {
+		return <LoadingState />;
+	}
+	if (profileError && selectedTab === "profile") {
+		return (
+			<ErrorState
+				title="Profile Error"
+				description={profileError}
+				onRetry={refreshProfile}
+			/>
+		);
+	}
+	if (!userProfile && selectedTab === "profile") {
+		return (
+			<EmptyState
+				title="No Profile Data"
+				description="No user profile data found. Please refresh or try again later."
+				onRetry={refreshProfile}
+			/>
+		);
+	}
+
+	if (recommendationsLoading && selectedTab === "recommendations") {
+		return <LoadingState />;
+	}
+	if (recommendationsError && selectedTab === "recommendations") {
+		return (
+			<ErrorState
+				title="Recommendations Error"
+				description={recommendationsError}
+				onRetry={refreshRecommendations}
+			/>
+		);
+	}
+	if (!recommendations?.length && selectedTab === "recommendations") {
+		return (
+			<EmptyState
+				title="No Recommendations"
+				description="No personalized recommendations found. Keep learning to unlock more!"
+				onRetry={refreshRecommendations}
+			/>
+		);
+	}
+
+	if (studyPlanLoading && selectedTab === "study-plan") {
+		return <LoadingState />;
+	}
+	if (studyPlanError && selectedTab === "study-plan") {
+		return (
+			<ErrorState
+				title="Study Plan Error"
+				description={studyPlanError}
+				onRetry={loadTodayStudyPlan}
+			/>
+		);
+	}
+	if (!todayStudyPlan?.length && selectedTab === "study-plan") {
+		return (
+			<EmptyState
+				title="No Study Plan"
+				description="No study plan found for today. Please refresh or check back later!"
+				onRetry={loadTodayStudyPlan}
+			/>
+		);
+	}
+
+	if (difficultyLoading && selectedTab === "difficulty") {
+		return <LoadingState />;
+	}
+	if (difficultyError && selectedTab === "difficulty") {
+		return (
+			<ErrorState
+				title="Difficulty Error"
+				description={difficultyError}
+				onRetry={calculateDifficultyAdjustment}
+			/>
+		);
+	}
+	if (!difficultyAdjustment && selectedTab === "difficulty") {
+		return (
+			<EmptyState
+				title="No Difficulty Data"
+				description="No difficulty adjustment data found. Try practicing more to unlock this feature!"
+				onRetry={calculateDifficultyAdjustment}
+			/>
+		);
+	}
 
 	return (
 		<SafeAreaView style={styles.container}>

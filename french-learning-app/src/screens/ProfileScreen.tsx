@@ -16,6 +16,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { SupabaseService } from "../services/supabaseService";
 import { theme } from "../constants/theme";
 import { User } from "../types";
+import { EmptyState } from "../components/EmptyState";
+import { ErrorState } from "../components/ErrorState";
 
 export const ProfileScreen = ({ navigation }: any) => {
 	const { user, setUser } = useAuth();
@@ -231,9 +233,10 @@ export const ProfileScreen = ({ navigation }: any) => {
 
 	if (!user) {
 		return (
-			<View style={styles.container}>
-				<Text style={styles.errorText}>No user data available</Text>
-			</View>
+			<ErrorState
+				title="No user data available"
+				description="Please log in again or contact support if this issue persists."
+			/>
 		);
 	}
 	return (

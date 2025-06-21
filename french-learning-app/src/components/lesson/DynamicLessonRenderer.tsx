@@ -21,6 +21,9 @@ import {
 	SectionProgress,
 } from "../../types/LessonTypes";
 import { LessonService } from "../../services/lessonService";
+import { LoadingState } from "../../components/LoadingState";
+import { ErrorState } from "../../components/ErrorState";
+import { EmptyState } from "../../components/EmptyState";
 
 // Lesson state reducer
 const lessonReducer = (
@@ -411,46 +414,37 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 	};
 
 	if (state.loading) {
-		return (
-			<SafeAreaView style={styles.container}>
-				<View style={styles.loadingContainer}>
-					<Text style={styles.loadingText}>Loading lesson...</Text>
-				</View>
-			</SafeAreaView>
-		);
+		return <LoadingState />;
 	}
 
 	if (state.error) {
 		return (
-			<SafeAreaView style={styles.container}>
-				<View style={styles.errorContainer}>
-					<Text style={styles.errorText}>{state.error}</Text>
-					<TouchableOpacity style={styles.retryButton} onPress={loadLesson}>
-						<Text style={styles.retryButtonText}>Retry</Text>
-					</TouchableOpacity>
-				</View>
-			</SafeAreaView>
+			<ErrorState
+				title="Lesson Error"
+				description={state.error}
+				onRetry={loadLesson}
+			/>
 		);
 	}
 
-	if (state.isCompleted) {
+	if (!state.lesson) {
 		return (
-			<SafeAreaView style={styles.container}>
-				<View style={styles.completionContainer}>
-					<Ionicons name="checkmark-circle" size={80} color="#34C759" />
-					<Text style={styles.completionTitle}>Lesson Completed!</Text>
-					<Text style={styles.completionScore}>
-						Score: {state.userProgress?.score || 0}%
-					</Text>
-					<Text style={styles.completionTime}>
-						Time: {Math.floor((state.timeSpent || 0) / 60)}m{" "}
-						{(state.timeSpent || 0) % 60}s
-					</Text>
-					<TouchableOpacity style={styles.continueButton} onPress={onExit}>
-						<Text style={styles.continueButtonText}>Continue</Text>
-					</TouchableOpacity>
-				</View>
-			</SafeAreaView>
+			<EmptyState
+				title="Lesson Not Found"
+				description="This lesson could not be loaded. Please try another lesson or contact support."
+			/>
+		);
+	}
+
+	if (
+		!state.lesson.content.sections ||
+		state.lesson.content.sections.length === 0
+	) {
+		return (
+			<EmptyState
+				title="No Content"
+				description="This lesson has no sections yet. Please check back later!"
+			/>
 		);
 	}
 
