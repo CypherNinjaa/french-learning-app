@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
 	View,
 	Text,
@@ -10,9 +10,27 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../constants/theme";
 import { SpeechService } from "../services/speechService";
+import { useGamification } from "../hooks/useGamification";
+import { useAuth } from "../contexts/AuthContext";
 
 export const VocabularyPracticeScreen = ({ route, navigation }: any) => {
 	const { words = [], userId } = route.params || {};
+	const { user } = useAuth();
+	const { completeActivity } = useGamification();
+
+	// Award points for vocabulary practice session when component unmounts
+	useEffect(() => {
+		return () => {
+			// Award points when leaving vocabulary practice (session completion)
+			if (user && words.length > 0) {
+				completeActivity("vocabulary_quiz", 10, {
+					wordsStudied: words.length,
+					sessionType: "vocabulary_practice",
+					vocabularyCount: words.length
+				}).catch(console.error);
+			}
+		};
+	}, [user, words.length, completeActivity]);
 
 	const renderWordCard = ({ item, index }: any) => (
 		<View style={styles.card}>

@@ -66,13 +66,13 @@ export type AppStackParamList = {
 	GrammarManagement: undefined;
 	QuestionsManagement: undefined;
 	PronunciationWordsManagement: undefined;
-
 	// Learning & Practice
 	Levels: undefined;
 	Modules: { levelId: number; levelName: string; userId: string };
 	LessonList: { moduleId: number; moduleName: string; userId: string };
 	Lesson: { lessonId: number; lessonTitle: string; userId: string };
 	Vocabulary: undefined;
+	VocabularyPractice: { words: any[]; userId: string };
 	PronunciationTest: undefined;
 	PersonalizedLearning: undefined;
 
