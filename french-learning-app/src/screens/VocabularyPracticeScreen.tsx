@@ -26,7 +26,7 @@ export const VocabularyPracticeScreen = ({ route, navigation }: any) => {
 				completeActivity("vocabulary_quiz", 10, {
 					wordsStudied: words.length,
 					sessionType: "vocabulary_practice",
-					vocabularyCount: words.length
+					vocabularyCount: words.length,
 				}).catch(console.error);
 			}
 		};
@@ -53,9 +53,17 @@ export const VocabularyPracticeScreen = ({ route, navigation }: any) => {
 
 	return (
 		<SafeAreaView style={styles.container}>
+			{" "}
 			<View style={styles.header}>
 				<TouchableOpacity
-					onPress={() => navigation.goBack()}
+					onPress={() => {
+						if (navigation.canGoBack()) {
+							navigation.goBack();
+						} else {
+							// Fallback to navigate to Learning tab if no back stack
+							navigation.navigate("MainTabs", { screen: "Learning" });
+						}
+					}}
 					style={styles.backButton}
 				>
 					<Ionicons name="chevron-back" size={24} color={theme.colors.text} />
