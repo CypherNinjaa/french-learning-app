@@ -140,7 +140,7 @@ export const AITestScreen: React.FC<AITestScreenProps> = ({ navigation }) => {
 				<TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
 					<Ionicons name="arrow-back" size={24} color={theme.colors.text} />
 				</TouchableOpacity>
-				<Text style={styles.headerTitle}>AI Integration Test</Text>
+				<Text style={styles.headerTitle}>Grammar correction</Text>
 				<TouchableOpacity
 					onPress={handleRefreshRateLimit}
 					style={styles.refreshButton}
@@ -165,7 +165,7 @@ export const AITestScreen: React.FC<AITestScreenProps> = ({ navigation }) => {
 					</View>
 				)}
 
-				{/* Rate Limit Status */}
+				{/* Rate Limit Status
 				{rateLimitStatus && (
 					<View style={styles.rateLimitCard}>
 						<Text style={styles.rateLimitTitle}>API Rate Limits</Text>
@@ -179,12 +179,12 @@ export const AITestScreen: React.FC<AITestScreenProps> = ({ navigation }) => {
 							Day: {rateLimitStatus.day?.remaining || 0} remaining
 						</Text>
 					</View>
-				)}
+				)} */}
 
 				{/* Practice Sentences Section */}
 				<View style={styles.section}>
 					<Text style={styles.sectionTitle}>
-						🎯 Practice Sentences Generator
+						🎯 Practice Sentences
 					</Text>
 					<TextInput
 						style={styles.input}
@@ -353,7 +353,7 @@ export const AITestScreen: React.FC<AITestScreenProps> = ({ navigation }) => {
 					)}
 				</View>
 
-				{/* Success Message */}
+				{/* Success Message
 				<View style={styles.successCard}>
 					<Ionicons
 						name="checkmark-circle"
@@ -366,7 +366,7 @@ export const AITestScreen: React.FC<AITestScreenProps> = ({ navigation }) => {
 						practice sentence generation, feedback system, hint generation,
 						grammar explanations, and dynamic question creation.
 					</Text>
-				</View>
+				</View> */}
 			</ScrollView>
 		</SafeAreaView>
 	);

@@ -154,6 +154,15 @@ const AppNavigator: React.FC = () => {
 				name="PronunciationTest"
 				component={PronunciationTestScreen}
 			/>
+			<AppStack.Screen
+				name="ConversationalAITest"
+				component={ConversationalAITestScreen}
+			/>
+			<AppStack.Screen
+				name="ConversationalAI"
+				component={ConversationalAIScreen}
+			/>
+			<AppStack.Screen name="AITest" component={AITestScreen} />
 			{/* Add other detail screens as needed */}
 		</AppStack.Navigator>
 	);
