@@ -33,9 +33,9 @@ import { VocabularyScreen } from "../screens/VocabularyScreen";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../constants/theme";
 import { deepLinkHandler } from "../utils/deepLinkHandler";
-import { NotFoundScreen } from "../screens/NotFoundScreen"; // Add a NotFound screen for future-proofing
 import { SplashScreen } from "../screens/SplashScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
+import { TabNavigation } from "./TabNavigation";
 
 // --- Navigation Param List Types ---
 // Auth stack for login/registration flows
@@ -81,9 +81,13 @@ export type AppStackParamList = {
 
 	// Settings
 	ThemeSettings: undefined;
+	Onboarding: undefined;
+
+	// Main Tabs
+	MainTabs: undefined;
 
 	// Fallback
-	NotFound?: undefined;
+	// Removed NotFound screen
 	// Add more screens as they are created
 };
 
@@ -115,12 +119,10 @@ const AuthNavigator: React.FC = () => {
 const AppNavigator: React.FC = () => {
 	return (
 		<AppStack.Navigator screenOptions={{ headerShown: false }}>
-			{/* --- Core --- */}
-			<AppStack.Screen name="Home" component={HomeScreen} />
-			<AppStack.Screen name="Profile" component={ProfileScreen} />
-			<AppStack.Screen name="Progress" component={ProgressScreen} />
+			{/* Main Tab Navigation as the home screen */}
+			<AppStack.Screen name="MainTabs" component={TabNavigation} />
 
-			{/* --- Admin & Content Management --- */}
+			{/* Admin screens accessible from anywhere */}
 			<AppStack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
 			<AppStack.Screen
 				name="ContentManagementDashboard"
@@ -139,38 +141,14 @@ const AppNavigator: React.FC = () => {
 				component={QuestionsManagement}
 			/>
 
-			{/* --- Learning & Practice --- */}
-			<AppStack.Screen name="Levels" component={LevelsScreen} />
-			<AppStack.Screen name="Modules" component={ModulesScreen} />
-			<AppStack.Screen name="LessonList" component={LessonListScreen} />
+			{/* Detail screens accessible from anywhere */}
 			<AppStack.Screen name="Lesson" component={LessonScreen} />
-			<AppStack.Screen name="Vocabulary" component={VocabularyScreen} />
+			<AppStack.Screen name="LessonList" component={LessonListScreen} />
 			<AppStack.Screen
 				name="PronunciationTest"
 				component={PronunciationTestScreen}
 			/>
-			<AppStack.Screen
-				name="PersonalizedLearning"
-				component={PersonalizedLearningScreen}
-			/>
-
-			{/* --- AI & Gamification --- */}
-			<AppStack.Screen name="AITest" component={AITestScreen} />
-			<AppStack.Screen
-				name="ConversationalAI"
-				component={ConversationalAIScreen}
-			/>
-			<AppStack.Screen
-				name="ConversationalAITest"
-				component={ConversationalAITestScreen}
-			/>
-			<AppStack.Screen name="Gamification" component={GamificationScreen} />
-
-			{/* --- Settings --- */}
-			<AppStack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
-
-			{/* --- Fallback --- */}
-			<AppStack.Screen name="NotFound" component={NotFoundScreen} />
+			{/* Add other detail screens as needed */}
 		</AppStack.Navigator>
 	);
 };
@@ -187,7 +165,6 @@ export const AppNavigation: React.FC = () => {
 	const { user, loading } = useAuth();
 	const navigationRef = useRef<any>(null);
 	const [showSplash, setShowSplash] = React.useState(true);
-	const [showOnboarding, setShowOnboarding] = React.useState(false); // You can wire this to user profile or AsyncStorage for real onboarding logic
 
 	useEffect(() => {
 		if (navigationRef.current) {
@@ -198,17 +175,15 @@ export const AppNavigation: React.FC = () => {
 			setTimeout(() => {
 				setShowSplash(false);
 				// Simulate onboarding for new users
-				if (!user) setShowOnboarding(true);
+				if (!user && navigationRef.current) {
+					navigationRef.current.navigate("Onboarding");
+				}
 			}, 1800);
 		}
 	}, [showSplash, user]);
 
 	if (showSplash) {
 		return <SplashScreen />;
-	}
-
-	if (showOnboarding) {
-		return <OnboardingScreen navigation={navigationRef.current} />;
 	}
 
 	if (loading) {

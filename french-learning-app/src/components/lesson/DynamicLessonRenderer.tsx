@@ -21,9 +21,11 @@ import {
 	SectionProgress,
 } from "../../types/LessonTypes";
 import { LessonService } from "../../services/lessonService";
+import { SpeechService } from "../../services/speechService";
 import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
+import { FillInBlankRenderer } from "./question-types/FillInBlankRenderer";
 
 // Lesson state reducer
 const lessonReducer = (
@@ -448,6 +450,26 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 		);
 	}
 
+	if (state.isCompleted && state.userProgress) {
+		// Calculate points and streaks dynamically
+		const points = state.userProgress.score ?? 0;
+		// Placeholder: streak = 1 for this lesson; replace with real streak logic if available
+		const streak = 1;
+		return (
+			<View style={styles.completionContainer}>
+				<Text style={styles.completionTitle}>Lesson Complete!</Text>
+				<Text style={styles.completionScore}>Score: {points}</Text>
+				<Text style={styles.completionScore}>Streak: {streak} 🔥</Text>
+				<Text style={styles.completionTime}>
+					Time: {state.userProgress.time_spent ?? 0} sec
+				</Text>
+				<TouchableOpacity style={styles.continueButton} onPress={onExit}>
+					<Text style={styles.continueButtonText}>Continue</Text>
+				</TouchableOpacity>
+			</View>
+		);
+	}
+
 	return (
 		<SafeAreaView style={styles.container}>
 			<View style={styles.header}>
@@ -455,10 +477,7 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 					<Ionicons name="close" size={24} color="#007AFF" />
 				</TouchableOpacity>
 				<Text style={styles.lessonTitle}>{state.lesson?.title}</Text>
-				<Text style={styles.timeDisplay}>
-					{Math.floor(state.timeSpent / 60)}:
-					{(state.timeSpent % 60).toString().padStart(2, "0")}
-				</Text>
+				{/* Timer hidden from UI, but still tracked in state */}
 			</View>
 
 			{renderProgressBar()}
@@ -472,34 +491,148 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 	);
 };
 
-// Placeholder for individual section renderer
+// Enhanced section renderer that handles different content types
 const LessonSectionRenderer: React.FC<{
 	section: LessonSection;
 	onComplete: (score: number, timeSpent: number) => void;
 }> = ({ section, onComplete }) => {
 	const [sectionStartTime] = useState(Date.now());
 
-	const handleSectionComplete = () => {
+	// Pass score from child (e.g., quiz, fill-in-the-blank, etc.)
+	const handleSectionComplete = (score = 100) => {
 		const timeSpent = Math.floor((Date.now() - sectionStartTime) / 1000);
-		onComplete(100, timeSpent); // Default score for now
+		onComplete(score, timeSpent);
+	};
+
+	// Replace renderSectionContent with a dynamic renderer
+	const renderSectionContent = () => {
+		switch (section.type) {
+			case "vocabulary":
+				return renderVocabularySection(section.content);
+			case "grammar":
+				return renderGrammarSection(section.content);
+			case "practice": // Use 'practice' for fill-in-the-blank sections
+				return (
+					<FillInBlankRenderer
+						question={section.content}
+						onAnswer={(answers, isAllCorrect, timeSpent) =>
+							handleSectionComplete(isAllCorrect ? 100 : 0)
+						}
+						isAnswered={false}
+						userAnswer={[]}
+						showCorrectAnswer={false}
+						disabled={false}
+						timeUp={false}
+					/>
+				);
+			// Add more dynamic types as needed (e.g., quiz, pronunciation, etc.)
+			case "text":
+			default:
+				return renderTextSection(section.content);
+		}
+	};
+
+	const renderVocabularySection = (content: any) => {
+		if (typeof content === "string") {
+			return <Text style={styles.sectionText}>{content}</Text>;
+		}
+
+		const words =
+			content.words ||
+			content.colors ||
+			content.numbers ||
+			content.foods ||
+			content.travel_words ||
+			[];
+		const explanation = content.explanation || "";
+
+		return (
+			<View>
+				{explanation && (
+					<Text style={styles.explanationText}>{explanation}</Text>
+				)}
+				<View style={styles.vocabularyGrid}>
+					{words.map((word: any, index: number) => (
+						<View key={index} style={styles.vocabularyCard}>
+							{/* Listen button top-right */}
+							<TouchableOpacity
+								style={styles.listenButtonCard}
+								onPress={() => SpeechService.speakVocabulary(word.french)}
+								accessibilityLabel={`Listen to pronunciation of ${word.french}`}
+							>
+								<Ionicons name="volume-high" size={22} color="#007AFF" />
+							</TouchableOpacity>
+							<Text style={styles.frenchWord}>{word.french}</Text>
+							<Text style={styles.englishWord}>{word.english}</Text>
+							{word.pronunciation && (
+								<Text style={styles.pronunciationText}>
+									/{word.pronunciation}/
+								</Text>
+							)}
+							{word.example && (
+								<Text style={styles.exampleText}>{word.example}</Text>
+							)}
+						</View>
+					))}
+				</View>
+			</View>
+		);
+	};
+
+	const renderGrammarSection = (content: any) => {
+		if (typeof content === "string") {
+			return <Text style={styles.sectionText}>{content}</Text>;
+		}
+
+		const pronouns = content.pronouns || [];
+		const explanation = content.explanation || "";
+
+		return (
+			<View>
+				{explanation && (
+					<Text style={styles.explanationText}>{explanation}</Text>
+				)}
+				<View style={styles.grammarList}>
+					{pronouns.map((pronoun: any, index: number) => (
+						<View key={index} style={styles.grammarItem}>
+							<TouchableOpacity
+								style={styles.listenButtonCard}
+								onPress={() => SpeechService.speakVocabulary(pronoun.french)}
+								accessibilityLabel={`Listen to pronunciation of ${pronoun.french}`}
+							>
+								<Ionicons name="volume-high" size={22} color="#007AFF" />
+							</TouchableOpacity>
+							<Text style={styles.frenchWord}>{pronoun.french}</Text>
+							<Text style={styles.englishWord}>{pronoun.english}</Text>
+							{pronoun.example && (
+								<Text style={styles.exampleText}>"{pronoun.example}"</Text>
+							)}
+						</View>
+					))}
+				</View>
+			</View>
+		);
+	};
+
+	const renderTextSection = (content: any) => {
+		const text =
+			typeof content === "string"
+				? content
+				: content.text || JSON.stringify(content);
+		return <Text style={styles.sectionText}>{text}</Text>;
 	};
 
 	return (
 		<View style={styles.sectionContainer}>
-			<Text style={styles.sectionTitle}>{section.title}</Text>
-			<Text style={styles.sectionType}>Type: {section.type}</Text>
+			{section.title && (
+				<Text style={styles.sectionTitle}>{section.title}</Text>
+			)}
 
-			{/* This will be expanded to handle different section types */}
-			<View style={styles.sectionContent}>
-				<Text>Section content will be rendered here based on type</Text>
-				<Text>Section ID: {section.id}</Text>
-				<Text>Order: {section.order_index}</Text>
-				<Text>Required: {section.is_required ? "Yes" : "No"}</Text>
-			</View>
+			<View style={styles.sectionContent}>{renderSectionContent()}</View>
 
 			<TouchableOpacity
 				style={styles.completeButton}
-				onPress={handleSectionComplete}
+				onPress={() => handleSectionComplete()}
 			>
 				<Text style={styles.completeButtonText}>Complete Section</Text>
 			</TouchableOpacity>
@@ -635,6 +768,99 @@ const styles = StyleSheet.create({
 	navButtonTextDisabled: {
 		color: "#ccc",
 	},
+	// Enhanced section styles
+	sectionText: {
+		fontSize: 16,
+		lineHeight: 24,
+		color: "#333",
+		marginBottom: 16,
+	},
+	explanationText: {
+		fontSize: 14,
+		lineHeight: 20,
+		color: "#666",
+		fontStyle: "italic",
+		marginBottom: 16,
+		paddingHorizontal: 16,
+		paddingVertical: 12,
+		backgroundColor: "#f8f9fa",
+		borderRadius: 8,
+	},
+	vocabularyGrid: {
+		flexDirection: "row",
+		flexWrap: "wrap",
+		justifyContent: "space-between",
+	},
+	vocabularyCard: {
+		width: "48%",
+		backgroundColor: "#fff",
+		borderRadius: 16,
+		padding: 18,
+		marginBottom: 18,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.1,
+		shadowRadius: 6,
+		elevation: 3,
+		position: "relative",
+	},
+	listenButtonCard: {
+		position: "absolute",
+		top: 10,
+		right: 10,
+		zIndex: 2,
+		backgroundColor: "#f0f4ff",
+		borderRadius: 20,
+		padding: 6,
+		// subtle shadow
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.08,
+		shadowRadius: 2,
+		elevation: 1,
+	},
+	grammarItem: {
+		backgroundColor: "#fff",
+		borderRadius: 16,
+		padding: 18,
+		marginBottom: 14,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.08,
+		shadowRadius: 3,
+		elevation: 2,
+		position: "relative",
+	},
+	frenchWord: {
+		fontSize: 20,
+		fontWeight: "bold",
+		color: "#007AFF",
+		marginBottom: 2,
+		marginTop: 8,
+	},
+	englishWord: {
+		fontSize: 16,
+		color: "#333",
+		marginBottom: 2,
+	},
+	pronunciationText: {
+		fontSize: 14,
+		color: "#666",
+		fontStyle: "italic",
+		marginBottom: 8,
+	},
+	exampleText: {
+		fontSize: 14,
+		color: "#666",
+		lineHeight: 18,
+		borderLeftWidth: 3,
+		borderLeftColor: "#007AFF",
+		paddingLeft: 8,
+		marginTop: 6,
+	},
+	grammarList: {
+		marginTop: 8,
+	},
 	loadingContainer: {
 		flex: 1,
 		justifyContent: "center",
@@ -701,5 +927,17 @@ const styles = StyleSheet.create({
 		color: "#fff",
 		fontSize: 18,
 		fontWeight: "600",
+	},
+	listenButton: {
+		marginLeft: 4,
+		padding: 4,
+		borderRadius: 16,
+		backgroundColor: "#007AFF20",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	listenButtonText: {
+		fontSize: 18,
+		color: "#007AFF",
 	},
 });

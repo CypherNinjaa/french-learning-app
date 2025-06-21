@@ -464,7 +464,10 @@ export const PersonalizedLearningScreen: React.FC<
 			/>
 		);
 	}
-	if (!todayStudyPlan?.length && selectedTab === "study-plan") {
+	if (
+		(!todayStudyPlan || todayStudyPlan.sessions.length === 0) &&
+		selectedTab === "study-plan"
+	) {
 		return (
 			<EmptyState
 				title="No Study Plan"
@@ -482,7 +485,7 @@ export const PersonalizedLearningScreen: React.FC<
 			<ErrorState
 				title="Difficulty Error"
 				description={difficultyError}
-				onRetry={calculateDifficultyAdjustment}
+				onRetry={() => calculateDifficultyAdjustment(5, testPerformance)}
 			/>
 		);
 	}
@@ -491,7 +494,7 @@ export const PersonalizedLearningScreen: React.FC<
 			<EmptyState
 				title="No Difficulty Data"
 				description="No difficulty adjustment data found. Try practicing more to unlock this feature!"
-				onRetry={calculateDifficultyAdjustment}
+				onRetry={() => calculateDifficultyAdjustment(5, testPerformance)}
 			/>
 		);
 	}

@@ -314,7 +314,6 @@ export const ImageBasedRenderer: React.FC<ImageBasedProps> = ({
 
 			{/* Progress */}
 			<View style={styles.progressContainer}>
-				{" "}
 				<Text style={styles.progressText}>
 					{selectedRegions.length} area{selectedRegions.length !== 1 ? "s" : ""}{" "}
 					selected

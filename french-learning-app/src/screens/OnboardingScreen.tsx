@@ -2,10 +2,12 @@ import React from "react";
 import { View, Text, StyleSheet, Image } from "react-native";
 import { ModernButton } from "../components/ModernUI";
 import { theme } from "../constants/theme";
+import { useNavigation } from "@react-navigation/native";
 
-export const OnboardingScreen: React.FC<{ navigation: any }> = ({
+export const OnboardingScreen: React.FC<{ navigation?: any }> = ({
 	navigation,
 }) => {
+	const nav = navigation || useNavigation();
 	return (
 		<View style={styles.container}>
 			<Image
@@ -21,7 +23,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = ({
 			<ModernButton
 				title="Get Started"
 				variant="primary"
-				onPress={() => navigation.replace("Home")}
+				onPress={() => (nav && nav.replace ? nav.replace("Home") : null)}
 				style={styles.button}
 			/>
 		</View>

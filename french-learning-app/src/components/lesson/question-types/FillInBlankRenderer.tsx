@@ -16,6 +16,7 @@ import { Audio } from "expo-av";
 import { theme } from "../../../constants/theme";
 import { BaseQuestionProps } from "../../../types/QuestionTypes";
 import { Question } from "../../../types";
+import { SpeechService } from "../../../services/speechService";
 
 interface FillInBlankProps extends BaseQuestionProps {
 	question: Question;
@@ -190,6 +191,21 @@ export const FillInBlankRenderer: React.FC<FillInBlankProps> = ({
 							autoCapitalize="none"
 							autoCorrect={false}
 						/>
+						{/* Listen Button for this blank */}
+						<TouchableOpacity
+							style={styles.listenButton}
+							onPress={() => {
+								const correct = question.correct_answer
+									.split("|")
+									[i]?.split(",")[0];
+								if (correct) {
+									SpeechService.speakFrench(correct);
+								}
+							}}
+							disabled={disabled}
+						>
+							<Text style={styles.listenButtonText}>🔊</Text>
+						</TouchableOpacity>
 						{showCorrectAnswer && blank.isCorrect === false && (
 							<Text style={styles.correctAnswerHint}>
 								(Correct: {question.correct_answer.split("|")[i]?.split(",")[0]}
@@ -258,7 +274,6 @@ export const FillInBlankRenderer: React.FC<FillInBlankProps> = ({
 
 			{/* Progress Indicator */}
 			<View style={styles.progressContainer}>
-				{" "}
 				<Text style={styles.progressText}>
 					{blanks.filter((b) => b.value.trim() !== "").length} / {blanks.length}{" "}
 					blanks filled
@@ -409,5 +424,17 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontWeight: "600",
 		fontSize: 14,
+	},
+	listenButton: {
+		marginLeft: 4,
+		padding: 4,
+		borderRadius: 16,
+		backgroundColor: theme.colors.primary + "20",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	listenButtonText: {
+		fontSize: 18,
+		color: theme.colors.primary,
 	},
 });

@@ -257,7 +257,6 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
 									</Text>
 								</View>
 								<View style={styles.performanceDetails}>
-									{" "}
 									<Text style={styles.performanceDetail}>
 										{performance.total_completed}/{performance.total_attempted}{" "}
 										completed
