@@ -17,6 +17,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useConversationalAI } from "../hooks/useConversationalAI";
 import { ChatMessage, GrammarError } from "../services/conversationalAIService";
 import { theme } from "../constants/theme";
+import { LoadingState } from "../components/LoadingState";
+import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
 
 interface ConversationalAIScreenProps {
 	navigation: any;
@@ -222,7 +225,7 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 					>
 						<Ionicons name="warning" size={16} color={theme.colors.warning} />
 						<Text style={styles.grammarIndicatorText}>
-							{message.grammarErrors.length} grammar{" "}
+							{message.grammarErrors.length} grammar
 							{message.grammarErrors.length === 1 ? "issue" : "issues"}
 						</Text>
 					</TouchableOpacity>
@@ -241,7 +244,20 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 		</View>
 	);
 
-	if (!conversationStarted) {
+	if (error && !conversationStarted) {
+		return (
+			<ErrorState
+				title="AI Conversation Error"
+				description={error}
+				onRetry={clearError}
+			/>
+		);
+	}
+
+	if (
+		!conversationStarted &&
+		(!currentContext || !currentContext.conversationHistory.length)
+	) {
 		return (
 			<SafeAreaView style={styles.container}>
 				<View style={styles.header}>
@@ -250,88 +266,10 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 					</TouchableOpacity>
 					<Text style={styles.headerTitle}>AI Conversation Partner</Text>
 				</View>
-
-				<ScrollView
-					style={styles.setupContainer}
-					contentContainerStyle={styles.setupContent}
-				>
-					<View style={styles.welcomeCard}>
-						<Ionicons
-							name="chatbubbles"
-							size={48}
-							color={theme.colors.primary}
-						/>
-						<Text style={styles.welcomeTitle}>
-							Practice French Conversation
-						</Text>
-						<Text style={styles.welcomeDescription}>
-							Chat with an AI partner that provides real-time grammar feedback,
-							vocabulary suggestions, and adaptive questioning based on your
-							performance.
-						</Text>
-					</View>
-
-					<View style={styles.setupSection}>
-						<Text style={styles.setupSectionTitle}>Choose a Topic</Text>
-						<View style={styles.topicsGrid}>
-							{topics.map((topic) => (
-								<TouchableOpacity
-									key={topic}
-									style={[
-										styles.topicButton,
-										selectedTopic === topic && styles.selectedTopicButton,
-									]}
-									onPress={() => setSelectedTopic(topic)}
-								>
-									<Text
-										style={[
-											styles.topicButtonText,
-											selectedTopic === topic && styles.selectedTopicButtonText,
-										]}
-									>
-										{topic}
-									</Text>
-								</TouchableOpacity>
-							))}
-						</View>
-					</View>
-
-					<View style={styles.setupSection}>
-						<Text style={styles.setupSectionTitle}>Select Your Level</Text>
-						{levels.map((level) => (
-							<TouchableOpacity
-								key={level.value}
-								style={[
-									styles.levelButton,
-									selectedLevel === level.value && styles.selectedLevelButton,
-								]}
-								onPress={() => setSelectedLevel(level.value)}
-							>
-								<Text
-									style={[
-										styles.levelButtonText,
-										selectedLevel === level.value &&
-											styles.selectedLevelButtonText,
-									]}
-								>
-									{level.label}
-								</Text>
-							</TouchableOpacity>
-						))}
-					</View>
-
-					<TouchableOpacity
-						style={[styles.startButton, isLoading && styles.disabledButton]}
-						onPress={handleStartConversation}
-						disabled={isLoading}
-					>
-						{isLoading ? (
-							<ActivityIndicator size="small" color="white" />
-						) : (
-							<Text style={styles.startButtonText}>Start Conversation</Text>
-						)}
-					</TouchableOpacity>
-				</ScrollView>
+				<EmptyState
+					title="No Conversation Started"
+					description="Start a new conversation to practice your French with AI!"
+				/>
 			</SafeAreaView>
 		);
 	}

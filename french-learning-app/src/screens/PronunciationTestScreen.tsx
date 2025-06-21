@@ -1,5 +1,5 @@
 // Test Screen for Stage 5.1 - Text-to-Speech Integration
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	View,
 	Text,
@@ -15,6 +15,10 @@ import {
 	PronunciationButton,
 } from "../components/pronunciation/PronunciationPlayer";
 import { theme } from "../constants/theme";
+import { LoadingState } from "../components/LoadingState";
+import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
+import { supabase } from "../services/supabase";
 
 interface PronunciationTestScreenProps {
 	navigation: any;
@@ -23,20 +27,27 @@ interface PronunciationTestScreenProps {
 export const PronunciationTestScreen: React.FC<
 	PronunciationTestScreenProps
 > = ({ navigation }) => {
-	const [selectedVariant, setSelectedVariant] = useState<
-		"primary" | "secondary" | "minimal"
-	>("primary");
+	const [error, setError] = useState<string | null>(null);
+	const [words, setWords] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [speedValue, setSpeedValue] = useState(1.0);
 
-	const testWords = [
-		"Bonjour",
-		"Comment allez-vous?",
-		"Je m'appelle Pierre",
-		"Voulez-vous un café?",
-		"Où est la bibliothèque?",
-		"Quelle heure est-il?",
-		"Combien ça coûte?",
-		"Pouvez-vous répéter?",
-	];
+	useEffect(() => {
+		const fetchWords = async () => {
+			setLoading(true);
+			const { data, error } = await supabase
+				.from("pronunciation_words")
+				.select("id, french, english, pronunciation, example");
+			if (error) {
+				setError("Failed to load pronunciation words.");
+				setWords([]);
+			} else {
+				setWords(data || []);
+			}
+			setLoading(false);
+		};
+		fetchWords();
+	}, []);
 
 	const handleGoBack = () => {
 		navigation.goBack();
@@ -44,11 +55,37 @@ export const PronunciationTestScreen: React.FC<
 
 	const handlePronunciationError = (error: any) => {
 		console.error("Pronunciation error:", error);
+		setError(
+			"Unable to play pronunciation. Please check your device settings."
+		);
 		Alert.alert(
 			"Error",
 			"Unable to play pronunciation. Please check your device settings."
 		);
 	};
+
+	if (error) {
+		return (
+			<ErrorState
+				title="Pronunciation Error"
+				description={error}
+				onRetry={() => setError(null)}
+			/>
+		);
+	}
+
+	if (loading) {
+		return <LoadingState />;
+	}
+
+	if (words.length === 0) {
+		return (
+			<EmptyState
+				title="No Pronunciation Words"
+				description="No pronunciation words available. Please check back later!"
+			/>
+		);
+	}
 
 	return (
 		<SafeAreaView style={styles.container}>
@@ -62,134 +99,70 @@ export const PronunciationTestScreen: React.FC<
 			</View>
 
 			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-				{/* Variant Selector */}
+				{/* Speed Control System */}
 				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Button Variant</Text>
-					<View style={styles.variantButtons}>
-						{(["primary", "secondary", "minimal"] as const).map((variant) => (
+					<Text style={styles.sectionTitle}>Playback Speed</Text>
+					<View style={styles.speedControls}>
+						{[
+							{ label: "🐢 Slow", value: 0.7 },
+							{ label: "🚶 Normal", value: 1.0 },
+							{ label: "⚡ Fast", value: 1.3 },
+							{ label: "⚡⚡ Very Fast", value: 1.6 },
+						].map((speed) => (
 							<TouchableOpacity
-								key={variant}
+								key={speed.value}
 								style={[
-									styles.variantButton,
-									selectedVariant === variant && styles.variantButtonSelected,
+									styles.speedButton,
+									speedValue === speed.value && styles.speedButtonSelected,
 								]}
-								onPress={() => setSelectedVariant(variant)}
+								onPress={() => setSpeedValue(speed.value)}
 							>
 								<Text
 									style={[
-										styles.variantButtonText,
-										selectedVariant === variant &&
-											styles.variantButtonTextSelected,
+										styles.speedButtonText,
+										speedValue === speed.value &&
+											styles.speedButtonTextSelected,
 									]}
 								>
-									{variant.charAt(0).toUpperCase() + variant.slice(1)}
+									{speed.label}
 								</Text>
 							</TouchableOpacity>
 						))}
 					</View>
 				</View>
 
-				{/* Full Featured Pronunciation Player */}
+				{/* Dynamic Pronunciation Words List */}
 				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Full Featured Player</Text>
-					<PronunciationPlayer
-						text="Bonjour, comment allez-vous aujourd'hui?"
-						label="French greeting with speed controls"
-						variant={selectedVariant}
-						showSpeedControls={true}
-						showSpellButton={true}
-						onError={handlePronunciationError}
-					/>
-				</View>
-
-				{/* Minimal Pronunciation Player */}
-				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Minimal Player</Text>
-					<PronunciationPlayer
-						text="Au revoir!"
-						label="Simple goodbye"
-						variant="minimal"
-						showSpeedControls={false}
-						showSpellButton={false}
-						onError={handlePronunciationError}
-					/>
-				</View>
-
-				{/* Vocabulary Cards with Pronunciation Buttons */}
-				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Vocabulary Cards</Text>
+					<Text style={styles.sectionTitle}>Pronunciation Words</Text>
 					<View style={styles.vocabularyGrid}>
-						{testWords.map((word, index) => (
-							<View key={index} style={styles.vocabularyCard}>
-								<Text style={styles.vocabularyWord}>{word}</Text>
-								<View style={styles.vocabularyButtons}>
-									<PronunciationButton text={word} size="small" />
-									<PronunciationButton text={word} size="medium" />
-									<PronunciationButton text={word} size="large" />
+						{words.map((word, index) => (
+							<View key={word.id || index} style={styles.pronunciationCard}>
+								<View style={{ flex: 1 }}>
+									<Text style={styles.pronunciationFrench}>{word.french}</Text>
+									<Text style={styles.pronunciationEnglish}>
+										{word.english}
+									</Text>
+									{word.pronunciation ? (
+										<Text style={styles.pronunciationIPA}>
+											/{word.pronunciation}/
+										</Text>
+									) : null}
+									{word.example ? (
+										<Text style={styles.pronunciationExample}>
+											{word.example}
+										</Text>
+									) : null}
+								</View>
+								<View style={styles.pronunciationActions}>
+									<PronunciationButton
+										text={word.french}
+										size="large"
+										speed={speedValue}
+									/>
 								</View>
 							</View>
 						))}
 					</View>
-				</View>
-
-				{/* Feature Showcase */}
-				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Feature Showcase</Text>
-
-					<View style={styles.featureCard}>
-						<Text style={styles.featureTitle}>🎯 French Pronunciation</Text>
-						<Text style={styles.featureDescription}>
-							Native French text-to-speech with proper accent and pronunciation
-						</Text>
-						<PronunciationPlayer
-							text="Je suis très heureux de vous rencontrer"
-							variant="secondary"
-							showSpeedControls={false}
-							onError={handlePronunciationError}
-						/>
-					</View>
-
-					<View style={styles.featureCard}>
-						<Text style={styles.featureTitle}>⚡ Speed Controls</Text>
-						<Text style={styles.featureDescription}>
-							Adjust playback speed for better learning
-						</Text>
-						<PronunciationPlayer
-							text="Parlez-vous français?"
-							variant="primary"
-							showSpeedControls={true}
-							showSpellButton={false}
-							onError={handlePronunciationError}
-						/>
-					</View>
-
-					<View style={styles.featureCard}>
-						<Text style={styles.featureTitle}>📝 Spelling Mode</Text>
-						<Text style={styles.featureDescription}>
-							Spell out words letter by letter for better understanding
-						</Text>
-						<PronunciationPlayer
-							text="Merci"
-							variant="secondary"
-							showSpeedControls={false}
-							showSpellButton={true}
-							onError={handlePronunciationError}
-						/>
-					</View>
-				</View>
-
-				{/* Success Message */}
-				<View style={styles.successCard}>
-					<Ionicons
-						name="checkmark-circle"
-						size={48}
-						color={theme.colors.success}
-					/>
-					<Text style={styles.successTitle}>Stage 5.1 Complete!</Text>
-					<Text style={styles.successDescription}>
-						Text-to-Speech integration is now fully functional with French
-						pronunciation support, speed controls, and spelling features.
-					</Text>
 				</View>
 			</ScrollView>
 		</SafeAreaView>
@@ -236,11 +209,12 @@ const styles = StyleSheet.create({
 		color: theme.colors.text,
 		marginBottom: theme.spacing.md,
 	},
-	variantButtons: {
+	speedControls: {
 		flexDirection: "row",
 		gap: theme.spacing.sm,
+		marginBottom: theme.spacing.md,
 	},
-	variantButton: {
+	speedButton: {
 		paddingHorizontal: theme.spacing.md,
 		paddingVertical: theme.spacing.sm,
 		borderRadius: 8,
@@ -248,39 +222,64 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: theme.colors.border,
 	},
-	variantButtonSelected: {
+	speedButtonSelected: {
 		backgroundColor: theme.colors.primary,
 		borderColor: theme.colors.primary,
 	},
-	variantButtonText: {
+	speedButtonText: {
 		color: theme.colors.textSecondary,
 		fontSize: 14,
 		fontWeight: "500",
 	},
-	variantButtonTextSelected: {
+	speedButtonTextSelected: {
 		color: "white",
 		fontWeight: "600",
 	},
 	vocabularyGrid: {
 		gap: theme.spacing.md,
 	},
-	vocabularyCard: {
-		backgroundColor: theme.colors.surface,
-		padding: theme.spacing.md,
-		borderRadius: 8,
-		borderWidth: 1,
-		borderColor: theme.colors.border,
-	},
-	vocabularyWord: {
-		fontSize: 16,
-		fontWeight: "600",
-		color: theme.colors.text,
-		marginBottom: theme.spacing.sm,
-	},
-	vocabularyButtons: {
+	pronunciationCard: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: theme.spacing.sm,
+		backgroundColor: theme.colors.surface,
+		borderRadius: 12,
+		padding: theme.spacing.md,
+		marginBottom: theme.spacing.md,
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.06,
+		shadowRadius: 4,
+		elevation: 1,
+	},
+	pronunciationFrench: {
+		fontSize: 18,
+		fontWeight: "bold",
+		color: theme.colors.primary,
+		marginBottom: 2,
+	},
+	pronunciationEnglish: {
+		fontSize: 16,
+		color: theme.colors.text,
+		marginBottom: 2,
+	},
+	pronunciationIPA: {
+		fontSize: 14,
+		color: theme.colors.textSecondary,
+		fontStyle: "italic",
+		marginBottom: 4,
+	},
+	pronunciationExample: {
+		fontSize: 14,
+		color: theme.colors.textSecondary,
+		marginTop: 4,
+		fontStyle: "italic",
+	},
+	pronunciationActions: {
+		marginLeft: theme.spacing.lg,
+		alignItems: "center",
+		justifyContent: "center",
 	},
 	featureCard: {
 		backgroundColor: theme.colors.surface,

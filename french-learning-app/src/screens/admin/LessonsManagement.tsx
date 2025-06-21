@@ -54,7 +54,6 @@ export const LessonsManagement = () => {
 	const [selectedModule, setSelectedModule] = useState<number | null>(null);
 	const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
 	const [formLoading, setFormLoading] = useState(false);
-
 	const [formData, setFormData] = useState<LessonFormData>({
 		title: "",
 		description: "",
@@ -63,7 +62,10 @@ export const LessonsManagement = () => {
 		order_index: 1,
 		estimated_time_minutes: 10,
 		difficulty_level: "beginner",
-		content: {},
+		content: {
+			introduction: "",
+			sections: [],
+		},
 		is_active: true,
 	});
 
@@ -108,7 +110,6 @@ export const LessonsManagement = () => {
 			? modules.filter((module) => module.level_id === selectedLevel)
 			: modules;
 	};
-
 	const openCreateModal = () => {
 		const filteredModules = getFilteredModules();
 		const maxOrder =
@@ -122,7 +123,10 @@ export const LessonsManagement = () => {
 			order_index: maxOrder + 1,
 			estimated_time_minutes: 10,
 			difficulty_level: "beginner",
-			content: {},
+			content: {
+				introduction: "",
+				sections: [],
+			},
 			is_active: true,
 		});
 		setEditingLesson(null);
@@ -130,6 +134,11 @@ export const LessonsManagement = () => {
 	};
 
 	const openEditModal = (lesson: Lesson) => {
+		// Ensure content has proper structure
+		let content = lesson.content || {};
+		if (!content.introduction) content.introduction = "";
+		if (!content.sections) content.sections = [];
+
 		setFormData({
 			title: lesson.title,
 			description: lesson.description || "",
@@ -138,11 +147,40 @@ export const LessonsManagement = () => {
 			order_index: lesson.order_index,
 			estimated_time_minutes: lesson.estimated_time_minutes,
 			difficulty_level: lesson.difficulty_level,
-			content: lesson.content || {},
+			content: content,
 			is_active: lesson.is_active,
 		});
 		setEditingLesson(lesson);
 		setModalVisible(true);
+	};
+	const validateLessonContent = (content: any): string | null => {
+		if (!content) {
+			return "Content is required";
+		}
+
+		if (!content.introduction || content.introduction.trim() === "") {
+			return "Introduction is required";
+		}
+
+		if (
+			!content.sections ||
+			!Array.isArray(content.sections) ||
+			content.sections.length === 0
+		) {
+			return "At least one section is required";
+		}
+
+		for (let i = 0; i < content.sections.length; i++) {
+			const section = content.sections[i];
+			if (!section.french || section.french.trim() === "") {
+				return `Section ${i + 1}: French text is required`;
+			}
+			if (!section.english || section.english.trim() === "") {
+				return `Section ${i + 1}: English translation is required`;
+			}
+		}
+
+		return null;
 	};
 
 	const handleSubmit = async () => {
@@ -153,6 +191,13 @@ export const LessonsManagement = () => {
 
 		if (!formData.module_id) {
 			Alert.alert("Error", "Please select a module");
+			return;
+		}
+
+		// Validate lesson content
+		const contentError = validateLessonContent(formData.content);
+		if (contentError) {
+			Alert.alert("Content Error", contentError);
 			return;
 		}
 
@@ -245,7 +290,6 @@ export const LessonsManagement = () => {
 		};
 		return icons[type] || "📄";
 	};
-
 	const getLessonTypeColor = (type: LessonType) => {
 		const colors = {
 			vocabulary: "#4ECDC4",
@@ -256,6 +300,85 @@ export const LessonsManagement = () => {
 			listening: "#FF6B6B",
 		};
 		return colors[type] || theme.colors.primary;
+	};
+
+	const getContentTemplate = (lessonType: LessonType) => {
+		const templates = {
+			vocabulary: {
+				introduction: "Learn new French vocabulary words and their meanings.",
+				sections: [
+					{
+						french: "Bonjour",
+						english: "Hello",
+						pronunciation: "bon-ZHOOR",
+						example: "Bonjour, comment allez-vous?",
+					},
+					{
+						french: "Merci",
+						english: "Thank you",
+						pronunciation: "mer-SEE",
+						example: "Merci beaucoup pour votre aide.",
+					},
+				],
+			},
+			grammar: {
+				introduction: "Master French grammar rules and sentence structure.",
+				sections: [
+					{
+						french: "Les articles définis: le, la, les",
+						english: "Definite articles: the",
+						pronunciation: "luh, lah, lay",
+						example:
+							"Le livre (the book), la table (the table), les enfants (the children)",
+					},
+				],
+			},
+			conversation: {
+				introduction: "Practice common French conversation scenarios.",
+				sections: [
+					{
+						french: "Comment vous appelez-vous?",
+						english: "What is your name?",
+						pronunciation: "koh-mahn voo zah-play voo",
+						example: "- Comment vous appelez-vous? - Je m'appelle Marie.",
+					},
+				],
+			},
+			pronunciation: {
+				introduction: "Learn proper French pronunciation and phonetics.",
+				sections: [
+					{
+						french: "Les voyelles: a, e, i, o, u",
+						english: "Vowels: a, e, i, o, u",
+						pronunciation: "ah, eh, ee, oh, oo",
+						example: "Practice: papa, bébé, midi, rôti, lune",
+					},
+				],
+			},
+			reading: {
+				introduction: "Improve reading comprehension with French texts.",
+				sections: [
+					{
+						french: "Marie va au marché chaque matin.",
+						english: "Marie goes to the market every morning.",
+						pronunciation: "mah-REE vah oh mar-SHAY shahk mah-TAHN",
+						example: "Practice reading this sentence aloud.",
+					},
+				],
+			},
+			listening: {
+				introduction: "Develop listening skills with French audio content.",
+				sections: [
+					{
+						french: "Écoutez et répétez",
+						english: "Listen and repeat",
+						pronunciation: "ay-koo-TAY ay ray-pay-TAY",
+						example: "Follow the audio prompts and practice pronunciation.",
+					},
+				],
+			},
+		};
+		return templates[lessonType] || templates.vocabulary;
 	};
 
 	useEffect(() => {
@@ -631,7 +754,187 @@ export const LessonsManagement = () => {
 						{/* Content */}
 						<View style={styles.formSection}>
 							<Text style={styles.sectionTitle}>Content</Text>
-							<Text style={styles.fieldLabel}>Lesson Content (JSON)</Text>
+							<View style={styles.contentEditor}>
+								<Text style={styles.fieldLabel}>Introduction</Text>
+								<TextInput
+									style={[styles.textInput, styles.textArea]}
+									value={formData.content.introduction || ""}
+									onChangeText={(text) =>
+										setFormData((prev) => ({
+											...prev,
+											content: { ...prev.content, introduction: text },
+										}))
+									}
+									placeholder="Brief introduction for this lesson"
+									placeholderTextColor={theme.colors.textSecondary}
+									multiline
+									numberOfLines={2}
+								/>
+
+								<Text style={styles.fieldLabel}>Sections</Text>
+								{(formData.content.sections || []).map(
+									(section: any, index: number) => (
+										<View key={index} style={styles.sectionEditor}>
+											<View style={styles.sectionHeader}>
+												<Text style={styles.sectionNumber}>
+													Section {index + 1}
+												</Text>
+												<TouchableOpacity
+													style={styles.deleteSectionButton}
+													onPress={() => {
+														const newSections = [
+															...(formData.content.sections || []),
+														];
+														newSections.splice(index, 1);
+														setFormData((prev) => ({
+															...prev,
+															content: {
+																...prev.content,
+																sections: newSections,
+															},
+														}));
+													}}
+												>
+													<Text style={styles.deleteSectionText}>Delete</Text>
+												</TouchableOpacity>
+											</View>
+
+											<Text style={styles.subFieldLabel}>French</Text>
+											<TextInput
+												style={styles.textInput}
+												value={section.french || ""}
+												onChangeText={(text) => {
+													const newSections = [
+														...(formData.content.sections || []),
+													];
+													newSections[index] = {
+														...newSections[index],
+														french: text,
+													};
+													setFormData((prev) => ({
+														...prev,
+														content: { ...prev.content, sections: newSections },
+													}));
+												}}
+												placeholder="French text"
+												placeholderTextColor={theme.colors.textSecondary}
+											/>
+
+											<Text style={styles.subFieldLabel}>English</Text>
+											<TextInput
+												style={styles.textInput}
+												value={section.english || ""}
+												onChangeText={(text) => {
+													const newSections = [
+														...(formData.content.sections || []),
+													];
+													newSections[index] = {
+														...newSections[index],
+														english: text,
+													};
+													setFormData((prev) => ({
+														...prev,
+														content: { ...prev.content, sections: newSections },
+													}));
+												}}
+												placeholder="English translation"
+												placeholderTextColor={theme.colors.textSecondary}
+											/>
+
+											<Text style={styles.subFieldLabel}>Pronunciation</Text>
+											<TextInput
+												style={styles.textInput}
+												value={section.pronunciation || ""}
+												onChangeText={(text) => {
+													const newSections = [
+														...(formData.content.sections || []),
+													];
+													newSections[index] = {
+														...newSections[index],
+														pronunciation: text,
+													};
+													setFormData((prev) => ({
+														...prev,
+														content: { ...prev.content, sections: newSections },
+													}));
+												}}
+												placeholder="Pronunciation guide"
+												placeholderTextColor={theme.colors.textSecondary}
+											/>
+
+											<Text style={styles.subFieldLabel}>Example</Text>
+											<TextInput
+												style={styles.textInput}
+												value={section.example || ""}
+												onChangeText={(text) => {
+													const newSections = [
+														...(formData.content.sections || []),
+													];
+													newSections[index] = {
+														...newSections[index],
+														example: text,
+													};
+													setFormData((prev) => ({
+														...prev,
+														content: { ...prev.content, sections: newSections },
+													}));
+												}}
+												placeholder="Usage example"
+												placeholderTextColor={theme.colors.textSecondary}
+											/>
+										</View>
+									)
+								)}
+
+								<TouchableOpacity
+									style={styles.addSectionButton}
+									onPress={() => {
+										const newSection = {
+											french: "",
+											english: "",
+											pronunciation: "",
+											example: "",
+										};
+										const newSections = [
+											...(formData.content.sections || []),
+											newSection,
+										];
+										setFormData((prev) => ({
+											...prev,
+											content: { ...prev.content, sections: newSections },
+										}));
+									}}
+								>
+									<Text style={styles.addSectionButtonText}>+ Add Section</Text>
+								</TouchableOpacity>
+
+								<TouchableOpacity
+									style={styles.loadTemplateButton}
+									onPress={() => {
+										const template = getContentTemplate(formData.lesson_type);
+										setFormData((prev) => ({ ...prev, content: template }));
+									}}
+								>
+									<Text style={styles.loadTemplateButtonText}>
+										Load Template
+									</Text>
+								</TouchableOpacity>
+							</View>
+							<Text style={styles.helpText}>
+								Use the form above to create structured lesson content, or edit
+								the JSON directly below if needed.
+							</Text>
+							<View style={styles.helpSection}>
+								<Text style={styles.helpTitle}>Content Structure Guide:</Text>
+								<Text style={styles.helpContent}>
+									• Introduction: A brief overview of the lesson{"\n"}•
+									Sections: Array of learning components, each with:{"\n"}-
+									French: The French text or word{"\n"}- English: The English
+									translation{"\n"}- Pronunciation: Optional pronunciation guide
+									{"\n"}- Example: Optional usage example
+								</Text>
+							</View>
+							<Text style={styles.fieldLabel}>Raw JSON (Advanced)</Text>
 							<TextInput
 								style={[styles.textInput, styles.textAreaLarge]}
 								value={JSON.stringify(formData.content, null, 2)}
@@ -646,12 +949,8 @@ export const LessonsManagement = () => {
 								placeholder="Enter lesson content as JSON"
 								placeholderTextColor={theme.colors.textSecondary}
 								multiline
-								numberOfLines={8}
+								numberOfLines={6}
 							/>
-							<Text style={styles.helpText}>
-								Content structure depends on lesson type. This will be improved
-								with a rich editor.
-							</Text>
 						</View>
 					</ScrollView>
 				</View>
@@ -976,5 +1275,89 @@ const styles = StyleSheet.create({
 		color: theme.colors.textSecondary,
 		fontStyle: "italic",
 		marginTop: -theme.spacing.sm,
+	},
+	// Content Editor Styles
+	contentEditor: {
+		marginBottom: theme.spacing.lg,
+	},
+	sectionEditor: {
+		backgroundColor: theme.colors.background,
+		borderRadius: 8,
+		padding: theme.spacing.md,
+		marginBottom: theme.spacing.md,
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+	},
+	sectionHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: theme.spacing.md,
+	},
+	sectionNumber: {
+		fontSize: 16,
+		fontWeight: "600",
+		color: theme.colors.primary,
+	},
+	deleteSectionButton: {
+		backgroundColor: theme.colors.error,
+		paddingHorizontal: theme.spacing.sm,
+		paddingVertical: theme.spacing.xs,
+		borderRadius: 4,
+	},
+	deleteSectionText: {
+		color: "white",
+		fontSize: 12,
+		fontWeight: "500",
+	},
+	subFieldLabel: {
+		fontSize: 12,
+		fontWeight: "500",
+		color: theme.colors.textSecondary,
+		marginBottom: theme.spacing.xs,
+		marginTop: theme.spacing.sm,
+	},
+	addSectionButton: {
+		backgroundColor: theme.colors.primary,
+		paddingVertical: theme.spacing.md,
+		borderRadius: 8,
+		alignItems: "center",
+		marginBottom: theme.spacing.md,
+	},
+	addSectionButtonText: {
+		color: "white",
+		fontSize: 16,
+		fontWeight: "600",
+	},
+	loadTemplateButton: {
+		backgroundColor: theme.colors.secondary,
+		paddingVertical: theme.spacing.md,
+		borderRadius: 8,
+		alignItems: "center",
+		marginBottom: theme.spacing.md,
+	},
+	loadTemplateButtonText: {
+		color: "white",
+		fontSize: 16,
+		fontWeight: "600",
+	},
+	helpSection: {
+		backgroundColor: theme.colors.surface,
+		padding: theme.spacing.md,
+		borderRadius: 8,
+		marginBottom: theme.spacing.md,
+		borderLeftWidth: 4,
+		borderLeftColor: theme.colors.primary,
+	},
+	helpTitle: {
+		fontSize: 14,
+		fontWeight: "600",
+		color: theme.colors.text,
+		marginBottom: theme.spacing.sm,
+	},
+	helpContent: {
+		fontSize: 12,
+		color: theme.colors.textSecondary,
+		lineHeight: 18,
 	},
 });

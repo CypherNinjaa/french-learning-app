@@ -114,7 +114,7 @@ export const ThemeSettingsScreen: React.FC<ThemeSettingsScreenProps> = ({
 				<View style={styles.optionsContainer}>
 					<Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
 						Choose Theme
-					</Text>{" "}
+					</Text>
 					{themeOptions.map((option) => {
 						const isSelected = themeMode === option.key;
 						const cardStyles = isSelected

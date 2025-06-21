@@ -19,6 +19,9 @@ import {
 } from "../../services/progressTrackingService";
 import { theme } from "../../constants/theme";
 import { DifficultyLevel, LessonType } from "../../types/LessonTypes";
+import { EmptyState } from "../../components/EmptyState";
+import { ErrorState } from "../../components/ErrorState";
+import { LoadingState } from "../../components/LoadingState";
 
 interface ProgressDashboardProps {
 	userId: string;
@@ -254,7 +257,6 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
 									</Text>
 								</View>
 								<View style={styles.performanceDetails}>
-									{" "}
 									<Text style={styles.performanceDetail}>
 										{performance.total_completed}/{performance.total_attempted}{" "}
 										completed
@@ -368,11 +370,10 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
 			<View style={styles.section}>
 				<Text style={styles.sectionTitle}>Personal Insights</Text>
 				{insights.length === 0 ? (
-					<View style={styles.noInsights}>
-						<Text style={styles.noInsightsText}>
-							Complete more lessons to unlock insights!
-						</Text>
-					</View>
+					<EmptyState
+						title="No Insights Yet"
+						description="Complete more lessons to unlock insights!"
+					/>
 				) : (
 					insights.map((insight, index) => (
 						<TouchableOpacity
@@ -406,22 +407,15 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
 	);
 
 	if (loading) {
-		return (
-			<View style={styles.loadingContainer}>
-				<ActivityIndicator size="large" color={theme.colors.primary} />
-				<Text style={styles.loadingText}>Loading your progress...</Text>
-			</View>
-		);
+		return <LoadingState />;
 	}
 
 	if (!analytics) {
 		return (
-			<View style={styles.errorContainer}>
-				<Text style={styles.errorText}>Unable to load progress data</Text>
-				<TouchableOpacity style={styles.retryButton} onPress={loadProgressData}>
-					<Text style={styles.retryButtonText}>Retry</Text>
-				</TouchableOpacity>
-			</View>
+			<ErrorState
+				title="Unable to load progress data"
+				description="Please check your connection or try again later."
+			/>
 		);
 	}
 

@@ -20,6 +20,9 @@ import {
 } from "../components/GamificationUI";
 import { useGamification } from "../hooks/useGamification";
 import { Achievement } from "../services/gamificationService";
+import { LoadingState } from "../components/LoadingState";
+import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
 
 export const GamificationScreen: React.FC = () => {
 	const { theme } = useTheme();
@@ -41,13 +44,20 @@ export const GamificationScreen: React.FC = () => {
 		points: 0,
 	});
 	const [refreshing, setRefreshing] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const levelInfo = getUserLevel();
 
 	const handleRefresh = async () => {
-		setRefreshing(true);
-		await refreshAll();
-		setRefreshing(false);
+		try {
+			setError(null);
+			setRefreshing(true);
+			await refreshAll();
+		} catch (e) {
+			setError("Failed to refresh gamification data. Please try again.");
+		} finally {
+			setRefreshing(false);
+		}
 	};
 
 	const handleAchievementPress = (achievement: Achievement) => {
@@ -262,16 +272,26 @@ export const GamificationScreen: React.FC = () => {
 	);
 
 	if (isLoading) {
+		return <LoadingState />;
+	}
+
+	if (error) {
 		return (
-			<SafeAreaView
-				style={[styles.container, { backgroundColor: theme.colors.background }]}
-			>
-				<View style={styles.loadingContainer}>
-					<Text style={[styles.loadingText, { color: theme.colors.text }]}>
-						Loading gamification data...
-					</Text>
-				</View>
-			</SafeAreaView>
+			<ErrorState
+				title="Gamification Error"
+				description={error}
+				onRetry={handleRefresh}
+			/>
+		);
+	}
+
+	if (!stats.stats && !achievements.achievements.length) {
+		return (
+			<EmptyState
+				title="No Gamification Data"
+				description="No gamification data found. Start learning to unlock achievements and stats!"
+				onRetry={handleRefresh}
+			/>
 		);
 	}
 
