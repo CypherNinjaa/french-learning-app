@@ -16,6 +16,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { SupabaseService } from "../services/supabaseService";
 import { theme } from "../constants/theme";
 import { User } from "../types";
+import { EmptyState } from "../components/EmptyState";
+import { ErrorState } from "../components/ErrorState";
+import { ThemeSwitchButton } from "../components/ModernUI";
 
 export const ProfileScreen = ({ navigation }: any) => {
 	const { user, setUser } = useAuth();
@@ -231,14 +234,16 @@ export const ProfileScreen = ({ navigation }: any) => {
 
 	if (!user) {
 		return (
-			<View style={styles.container}>
-				<Text style={styles.errorText}>No user data available</Text>
-			</View>
+			<ErrorState
+				title="No user data available"
+				description="Please log in again or contact support if this issue persists."
+			/>
 		);
 	}
 	return (
 		<ScrollView style={styles.container}>
-			<View style={styles.header}>
+			{/* Profile Card */}
+			<View style={[styles.section, { alignItems: "center", marginTop: 16 }]}>
 				<View style={styles.avatarContainer}>
 					<TouchableOpacity
 						onPress={handleAvatarPress}
@@ -275,23 +280,33 @@ export const ProfileScreen = ({ navigation }: any) => {
 					</TouchableOpacity>
 				</View>
 				<Text style={styles.welcomeText}>Welcome back!</Text>
+				<Text style={{ color: theme.colors.textSecondary, marginBottom: 8 }}>
+					{user.email}
+				</Text>
 			</View>
 
-			<View style={styles.statsContainer}>
-				<View style={styles.statItem}>
-					<Text style={styles.statNumber}>{user.points}</Text>
-					<Text style={styles.statLabel}>Points</Text>
-				</View>
-				<View style={styles.statItem}>
-					<Text style={styles.statNumber}>{user.streakDays}</Text>
-					<Text style={styles.statLabel}>Day Streak</Text>
-				</View>
-				<View style={styles.statItem}>
-					<Text style={styles.statLabel}>Level</Text>
-					<Text style={styles.levelBadge}>{user.level.toUpperCase()}</Text>
+			{/* Progress Card */}
+			<View style={styles.section}>
+				<Text style={styles.sectionTitle}>Progress</Text>
+				<View style={styles.statsContainer}>
+					<View style={styles.statItem}>
+						<Text style={styles.statNumber}>{user.points}</Text>
+						<Text style={styles.statLabel}>Points</Text>
+					</View>
+					<View style={styles.statItem}>
+						<Text style={styles.statNumber}>{user.streakDays}</Text>
+						<Text style={styles.statLabel}>Day Streak</Text>
+					</View>
+					<View style={styles.statItem}>
+						<Text style={styles.statLabel}>Level</Text>
+						<Text style={styles.levelBadge}>
+							{user.level.charAt(0).toUpperCase() + user.level.slice(1)}
+						</Text>
+					</View>
 				</View>
 			</View>
 
+			{/* Profile Info Card */}
 			<View style={styles.section}>
 				<View style={styles.sectionHeader}>
 					<Text style={styles.sectionTitle}>Profile Information</Text>
@@ -310,7 +325,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 						<Text style={styles.editButton}>{editing ? "Cancel" : "Edit"}</Text>
 					</TouchableOpacity>
 				</View>
-
 				<View style={styles.inputContainer}>
 					<Text style={styles.label}>Username</Text>
 					<TextInput
@@ -380,9 +394,43 @@ export const ProfileScreen = ({ navigation }: any) => {
 				)}
 			</View>
 
+			{/* Settings Card */}
+			<View style={styles.section}>
+				<Text style={styles.sectionTitle}>Settings</Text>
+				<View
+					style={{
+						flexDirection: "row",
+						alignItems: "center",
+						marginBottom: 16,
+					}}
+				>
+					<Text style={{ flex: 1, fontSize: 16, color: theme.colors.text }}>
+						Theme
+					</Text>
+					<ThemeSwitchButton />
+				</View>
+				<TouchableOpacity
+					style={[
+						styles.actionButton,
+						{
+							backgroundColor: theme.colors.surface,
+							borderWidth: 1,
+							borderColor: theme.colors.primary,
+						},
+					]}
+					onPress={() => navigation.navigate("ThemeSettings")}
+				>
+					<Text
+						style={[styles.actionButtonText, { color: theme.colors.primary }]}
+					>
+						Theme Settings
+					</Text>
+				</TouchableOpacity>
+			</View>
+
+			{/* Account Actions Card */}
 			<View style={styles.section}>
 				<Text style={styles.sectionTitle}>Account Actions</Text>
-
 				<TouchableOpacity style={styles.actionButton} onPress={handleSignOut}>
 					<Text style={styles.actionButtonText}>Sign Out</Text>
 				</TouchableOpacity>

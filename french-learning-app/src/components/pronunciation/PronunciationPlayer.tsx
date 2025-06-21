@@ -235,12 +235,14 @@ interface PronunciationButtonProps {
 	text: string;
 	size?: "small" | "medium" | "large";
 	disabled?: boolean;
+	speed?: number; // new prop for playback speed
 }
 
 export const PronunciationButton: React.FC<PronunciationButtonProps> = ({
 	text,
 	size = "medium",
 	disabled = false,
+	speed = 1.0,
 }) => {
 	const [isPlaying, setIsPlaying] = useState(false);
 
@@ -250,7 +252,13 @@ export const PronunciationButton: React.FC<PronunciationButtonProps> = ({
 		try {
 			setIsPlaying(true);
 
-			await SpeechService.speakVocabulary(text, "normal", {
+			// Map speed to closest SpeechService.SPEECH_RATES key
+			let rateKey: keyof typeof SpeechService.SPEECH_RATES = "normal";
+			if (speed <= 0.7) rateKey = "slow";
+			else if (speed >= 1.25) rateKey = "veryFast";
+			else if (speed >= 1.0) rateKey = "fast";
+
+			await SpeechService.speakVocabulary(text, rateKey, {
 				onDone: () => setIsPlaying(false),
 				onStopped: () => setIsPlaying(false),
 				onError: () => setIsPlaying(false),

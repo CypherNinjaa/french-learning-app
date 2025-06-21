@@ -9,7 +9,8 @@ import {
   CompletionCriteria,
   ProgressStatus,
   DifficultyLevel,
-  LessonType 
+  LessonType,
+  LessonSection
 } from '../types/LessonTypes';
 
 export class LessonService {
@@ -49,9 +50,34 @@ export class LessonService {
       if (error) {
         console.error('Error fetching lesson:', error);
         return null;
+      }      const lesson = data as Lesson;
+      
+      // Handle missing or invalid content
+      if (!lesson.content) {
+        lesson.content = { introduction: '', sections: [] };
       }
-
-      return data as Lesson;
+      
+      // Convert legacy content format to new sections format
+      if (!lesson.content.sections || lesson.content.sections.length === 0) {
+        // Check if this is legacy content format with any additional properties
+        const legacyContent = lesson.content as any;
+        if (legacyContent.vocabulary || legacyContent.grammar_focus) {
+          lesson.content.sections = this.convertLegacyContent(legacyContent, lesson);
+        } else {
+          // Create default section
+          lesson.content.sections = [
+            {
+              id: 'default-section',
+              type: 'text',
+              title: 'Sample Section',
+              content: 'This is a sample section. Please update this lesson with real content.',
+              order_index: 0,
+              is_required: true
+            }
+          ];
+        }
+      }
+      return lesson;
     } catch (error) {
       console.error('Error in getLessonById:', error);
       return null;
@@ -475,5 +501,69 @@ export class LessonService {
     }
 
     return true;
+  }
+
+  /**
+   * Convert legacy content format to new sections format
+   */
+  private static convertLegacyContent(legacyContent: any, lesson: Lesson): LessonSection[] {
+    const sections: LessonSection[] = [];
+    
+    // Create a vocabulary section if vocabulary exists
+    if (legacyContent.vocabulary && Array.isArray(legacyContent.vocabulary)) {
+      sections.push({
+        id: 'vocabulary-section',
+        type: 'vocabulary',
+        title: 'Vocabulary',
+        content: {
+          words: legacyContent.vocabulary.map((word: string) => ({
+            french: word,
+            english: 'Translation needed',
+            pronunciation: 'Pronunciation needed'
+          })),
+          explanation: 'Learn these essential vocabulary words.'
+        },
+        order_index: 0,
+        is_required: true
+      });
+    }
+    
+    // Create a grammar section if grammar focus exists
+    if (legacyContent.grammar_focus) {
+      sections.push({
+        id: 'grammar-section',
+        type: 'text',
+        title: 'Grammar Focus',
+        content: legacyContent.grammar_focus,
+        order_index: sections.length,
+        is_required: true
+      });
+    }
+    
+    // Create a general content section with introduction
+    if (legacyContent.introduction) {
+      sections.push({
+        id: 'introduction-section',
+        type: 'text',
+        title: 'Introduction',
+        content: legacyContent.introduction,
+        order_index: sections.length,
+        is_required: true
+      });
+    }
+    
+    // If no sections were created, add a default one
+    if (sections.length === 0) {
+      sections.push({
+        id: 'default-section',
+        type: 'text',
+        title: lesson.title || 'Lesson Content',
+        content: 'This lesson is being updated with new content.',
+        order_index: 0,
+        is_required: true
+      });
+    }
+    
+    return sections;
   }
 }

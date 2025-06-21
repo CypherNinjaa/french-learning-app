@@ -35,7 +35,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 			description: "Begin your French journey",
 			icon: "play-circle" as keyof typeof Ionicons.glyphMap,
 			color: currentTheme.colors.primary,
-			onPress: () => navigation.navigate("LessonList"),
+			onPress: () => navigation.navigate("Learning"), // Changed to navigate to the Learning tab
 		},
 		{
 			title: "AI Conversation Partner",
@@ -50,6 +50,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 			icon: "mic" as keyof typeof Ionicons.glyphMap,
 			color: currentTheme.colors.pronunciation,
 			onPress: () => navigation.navigate("PronunciationTest"),
+		},
+		{
+			title: "Vocabulary Practice",
+			description: "Learn new words",
+			icon: "library" as keyof typeof Ionicons.glyphMap,
+			color: currentTheme.colors.success,
+			onPress: () => navigation.navigate("Vocabulary"),
 		},
 		{
 			title: "Personalized Learning",
@@ -188,103 +195,143 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 							Day Streak
 						</Text>
 					</ModernCard>
-
-					<ModernCard style={styles.statCard}>
-						<Text
-							style={[
-								styles.statLevel,
-								{ color: currentTheme.colors.secondary },
-							]}
-						>
-							{user?.level || "beginner"}
-						</Text>
-						<Text
-							style={[
-								styles.statLabel,
-								{ color: currentTheme.colors.textSecondary },
-							]}
-						>
-							Level
-						</Text>
-					</ModernCard>
 				</View>
-				{/* Learning Options */}
-				<View style={styles.section}>
-					<Text
-						style={[styles.sectionTitle, { color: currentTheme.colors.text }]}
-					>
-						Continue Learning
-					</Text>
 
-					<View style={styles.learningGrid}>
-						{learningOptions.map((option, index) => (
-							<ModernCard
-								key={index}
-								style={{
-									...styles.learningCard,
-									flex: index < 2 ? 1 : 0.48,
-								}}
-								onPress={option.onPress}
-							>
-								<View
-									style={[
-										styles.iconContainer,
-										{ backgroundColor: `${option.color}20` },
-									]}
-								>
-									<Ionicons name={option.icon} size={28} color={option.color} />
-								</View>
-								<Text
-									style={[
-										styles.cardTitle,
-										{ color: currentTheme.colors.text },
-									]}
-								>
-									{option.title}
-								</Text>
-								<Text
-									style={[
-										styles.cardDescription,
-										{ color: currentTheme.colors.textSecondary },
-									]}
-								>
-									{option.description}
-								</Text>
-							</ModernCard>
-						))}
-					</View>
-				</View>
-				{/* Quick Actions */}
-				<View style={styles.section}>
-					<Text
-						style={[styles.sectionTitle, { color: currentTheme.colors.text }]}
-					>
-						Quick Actions
-					</Text>
-					<View style={styles.quickActionsRow}>
-						{quickActions.map((action, index) => (
-							<ModernCard
-								key={index}
-								style={styles.quickActionCard}
-								onPress={action.onPress}
+				{/* Beginner Learning Flow */}
+				{user?.level === "beginner" && (
+					<View style={styles.section}>
+						<Text
+							style={[styles.sectionTitle, { color: currentTheme.colors.text }]}
+						>
+							Start Your French Journey
+						</Text>
+						<ModernCard
+							style={styles.learningCard}
+							onPress={() => navigation.navigate("Learning")}
+						>
+							<View
+								style={[
+									styles.iconContainer,
+									{ backgroundColor: `${currentTheme.colors.primary}20` },
+								]}
 							>
 								<Ionicons
-									name={action.icon}
-									size={24}
+									name="play-circle"
+									size={32}
 									color={currentTheme.colors.primary}
 								/>
-								<Text
-									style={[
-										styles.quickActionText,
-										{ color: currentTheme.colors.text },
-									]}
-								>
-									{action.title}
-								</Text>
-							</ModernCard>
-						))}
+							</View>
+							<Text
+								style={[styles.cardTitle, { color: currentTheme.colors.text }]}
+							>
+								Start Learning
+							</Text>
+							<Text
+								style={[
+									styles.cardDescription,
+									{ color: currentTheme.colors.textSecondary },
+								]}
+							>
+								Begin with guided lessons designed for absolute beginners.
+							</Text>
+						</ModernCard>
+						<ModernCard
+							style={styles.learningCard}
+							onPress={() => navigation.navigate("Vocabulary")}
+						>
+							<View
+								style={[
+									styles.iconContainer,
+									{ backgroundColor: `${currentTheme.colors.success}20` },
+								]}
+							>
+								<Ionicons
+									name="library"
+									size={32}
+									color={currentTheme.colors.success}
+								/>
+							</View>
+							<Text
+								style={[styles.cardTitle, { color: currentTheme.colors.text }]}
+							>
+								Vocabulary Practice
+							</Text>
+							<Text
+								style={[
+									styles.cardDescription,
+									{ color: currentTheme.colors.textSecondary },
+								]}
+							>
+								Learn essential French words and phrases.
+							</Text>
+						</ModernCard>
+						<ModernCard
+							style={styles.learningCard}
+							onPress={() => navigation.navigate("PronunciationTest")}
+						>
+							<View
+								style={[
+									styles.iconContainer,
+									{ backgroundColor: `${currentTheme.colors.pronunciation}20` },
+								]}
+							>
+								<Ionicons
+									name="mic"
+									size={32}
+									color={currentTheme.colors.pronunciation}
+								/>
+							</View>
+							<Text
+								style={[styles.cardTitle, { color: currentTheme.colors.text }]}
+							>
+								Practice Pronunciation
+							</Text>
+							<Text
+								style={[
+									styles.cardDescription,
+									{ color: currentTheme.colors.textSecondary },
+								]}
+							>
+								Improve your speaking and listening skills.
+							</Text>
+						</ModernCard>
 					</View>
-				</View>
+				)}
+
+				{/* Only show Quick Actions for non-beginners */}
+				{user?.level !== "beginner" && (
+					<View style={styles.section}>
+						<Text
+							style={[styles.sectionTitle, { color: currentTheme.colors.text }]}
+						>
+							Quick Actions
+						</Text>
+						<View style={styles.quickActionsRow}>
+							{quickActions.map((action, index) => (
+								<ModernCard
+									key={index}
+									style={styles.quickActionCard}
+									onPress={action.onPress}
+								>
+									<Ionicons
+										name={action.icon}
+										size={24}
+										color={currentTheme.colors.primary}
+									/>
+									<Text
+										style={[
+											styles.quickActionText,
+											{ color: currentTheme.colors.text },
+										]}
+									>
+										{action.title}
+									</Text>
+								</ModernCard>
+							))}
+						</View>
+					</View>
+				)}
+
 				{/* Development/Testing Options */}
 				<View style={styles.section}>
 					<Text
@@ -299,7 +346,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						style={styles.testButton}
 					/>
 					<ModernButton
-						title="🤖 AI Features Test"
+						title="🧑‍💻 AI Features Test"
 						variant="outline"
 						onPress={() => navigation.navigate("AITest")}
 						style={styles.testButton}
@@ -309,7 +356,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 							title="👑 Admin Panel"
 							variant="primary"
 							icon="shield-checkmark"
-							onPress={() => navigation.navigate("AdminDashboard")}
+							onPress={() => navigation.getParent()?.navigate("AdminDashboard")}
+							style={styles.testButton}
+						/>
+					)}
+					{isAdmin() && (
+						<ModernButton
+							title="📚 Content Management"
+							variant="primary"
+							icon="folder"
+							onPress={() =>
+								navigation.getParent()?.navigate("ContentManagementDashboard")
+							}
 							style={styles.testButton}
 						/>
 					)}
@@ -397,8 +455,8 @@ const styles = StyleSheet.create({
 		marginBottom: 4,
 	},
 	statLevel: {
-		fontSize: 16,
-		fontWeight: "600",
+		fontSize: 13, // Decreased from 16
+		fontWeight: "500", // Slightly lighter
 		marginBottom: 4,
 		textTransform: "capitalize",
 	},

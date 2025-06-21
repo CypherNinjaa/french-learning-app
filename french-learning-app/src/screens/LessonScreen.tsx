@@ -23,18 +23,8 @@ export const LessonScreen: React.FC<LessonScreenProps> = ({
 	const { lessonId, userId, lessonTitle } = route.params;
 
 	const handleLessonComplete = (score: number, timeSpent: number) => {
-		Alert.alert(
-			"Lesson Completed!",
-			`Score: ${score}%\nTime: ${Math.floor(timeSpent / 60)}m ${
-				timeSpent % 60
-			}s`,
-			[
-				{
-					text: "Continue",
-					onPress: () => navigation.goBack(),
-				},
-			]
-		);
+		// Only navigate back, do not show duplicate Alert
+		navigation.goBack();
 	};
 
 	const handleExit = () => {
