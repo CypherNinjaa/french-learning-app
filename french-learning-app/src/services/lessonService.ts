@@ -225,9 +225,8 @@ export class LessonService {
       return false;
     }
   }
-
   /**
-   * Complete a lesson and update user stats
+   * Complete a lesson and update user stats with full gamification integration
    */
   static async completeLesson(
     userId: string, 
@@ -246,29 +245,35 @@ export class LessonService {
 
       if (!progressUpdate) return false;
 
-      // Calculate points based on performance
-      const points = await this.calculatePoints(lessonId, finalScore, totalTime);      // Update user profile with points
-      const { data: currentProfile } = await supabase
-        .from('profiles')
-        .select('total_points')
-        .eq('id', userId)
-        .single();
+      // Get lesson details for activity data
+      const lesson = await this.getLessonById(lessonId);
+      const isPerfectScore = finalScore >= 100;
+      
+      // Use comprehensive gamification system for points calculation and rewards
+      const { gamificationService } = await import('./gamificationService');
+      
+      // Calculate base points (50 for lesson completion as per gamification rules)
+      const basePoints = 50;
+      
+      // Calculate points with full gamification logic
+      const pointsResult = await gamificationService.calculatePointsEarned(
+        userId,
+        'lesson_completion',
+        basePoints,
+        {
+          lessonId,
+          score: finalScore,
+          timeSpent: totalTime,
+          isPerfectScore,
+          difficulty: lesson?.difficulty_level || 'beginner',
+          isFirstAttempt: true // Could be enhanced to track actual attempts
+        }
+      );
 
-      const newTotalPoints = (currentProfile?.total_points || 0) + points;
+      // Log points history with detailed information
+      await this.logPoints(userId, lessonId, pointsResult.total_points, 'lesson');
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ total_points: newTotalPoints })
-        .eq('id', userId);
-
-      if (profileError) {
-        console.error('Error updating user profile:', profileError);
-        return false;
-      }      // Log points history
-      await this.logPoints(userId, lessonId, points, 'lesson');
-
-      // Update daily stats through ProgressTrackingService (this also updates user_progress)
-      // Note: This might duplicate some progress updates, but ensures daily stats are tracked
+      // Update daily stats through ProgressTrackingService
       await ProgressTrackingService.updateLessonProgress(
         userId, 
         lessonId, 
@@ -276,6 +281,19 @@ export class LessonService {
         totalTime,
         [] // section progress - could be enhanced to pass actual section data
       );
+
+      // Check and unlock achievements based on lesson completion
+      await gamificationService.checkAndUnlockAchievements(userId, {
+        activity: 'lesson_completion',
+        lessonId,
+        score: finalScore,
+        timeSpent: totalTime,
+        isPerfectScore,
+        pointsEarned: pointsResult.total_points
+      });
+
+      // Update user streak
+      await gamificationService.updateUserStreak(userId);
 
       return true;
     } catch (error) {
