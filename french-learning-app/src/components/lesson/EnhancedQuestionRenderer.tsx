@@ -1,5 +1,5 @@
 // Enhanced Question Renderer - Stage 4.2
-// Central component for rendering all question types
+// Central component for rendering all question types with gamification integration
 
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
@@ -11,6 +11,7 @@ import {
 	QuestionRendererProps,
 	QuestionFeedback,
 } from "../../types/QuestionTypes";
+import { useGamification } from "../../hooks/useGamification";
 
 // Question type components
 import {
@@ -38,6 +39,8 @@ export const EnhancedQuestionRenderer: React.FC<QuestionRendererProps> = ({
 	onHint,
 	settings,
 }) => {
+	const { completeActivity } = useGamification();
+
 	const [questionState, setQuestionState] = useState<QuestionState>({
 		currentAnswer:
 			question.question_config.type === "multiple_choice" ? "" : [],
@@ -127,12 +130,34 @@ export const EnhancedQuestionRenderer: React.FC<QuestionRendererProps> = ({
 				timeSpent: timeSpent,
 				partial_score: partialScore,
 				showFeedback: settings.show_immediate_feedback,
-			}));
-
-			// Generate feedback
+			})); // Generate feedback
 			if (settings.show_immediate_feedback) {
 				const questionFeedback = generateFeedback(result, question);
 				setFeedback(questionFeedback);
+			}
+
+			// Award points for question completion using gamification system
+			if (isCorrect || partialScore > 0) {
+				const activityType = getActivityTypeForQuestion(
+					question.question_config.type
+				);
+				const basePoints = getBasePointsForQuestion(
+					question.question_config.type
+				);
+
+				completeActivity(activityType, basePoints, {
+					questionId: question.id,
+					questionType: question.question_config.type,
+					isCorrect,
+					partialScore,
+					timeSpent,
+					attempts,
+					hintsUsed: questionState.hints_used.length,
+					difficulty: question.difficulty_level || "beginner",
+					isFirstAttempt: attempts === 1,
+				}).catch((error) => {
+					console.error("Error awarding points for question:", error);
+				});
 			}
 
 			// Call parent callback
@@ -148,7 +173,7 @@ export const EnhancedQuestionRenderer: React.FC<QuestionRendererProps> = ({
 				);
 			}
 		},
-		[question, questionState, settings, onAnswer, onNext]
+		[question, questionState, settings, onAnswer, onNext, completeActivity]
 	);
 
 	const handleRetry = useCallback(() => {
@@ -323,8 +348,43 @@ function calculatePartialScore(
 
 		return Math.round((correctCount / userAnswer.length) * question.points);
 	}
-
 	return 0;
+}
+
+// Helper function to get activity type for gamification based on question type
+function getActivityTypeForQuestion(questionType: string): string {
+	switch (questionType) {
+		case "multiple_choice":
+			return "multiple_choice_question";
+		case "fill_blank":
+			return "grammar_exercise";
+		case "drag_drop":
+			return "vocabulary_quiz";
+		case "text_input":
+			return "grammar_exercise";
+		case "image_based":
+			return "vocabulary_quiz";
+		default:
+			return "question_completion";
+	}
+}
+
+// Helper function to get base points for different question types based on gamification rules
+function getBasePointsForQuestion(questionType: string): number {
+	switch (questionType) {
+		case "multiple_choice":
+			return 2; // Multiple Choice (Correct): 2 points
+		case "fill_blank":
+			return 3; // Fill-in-the-Blank (Correct): 3 points
+		case "drag_drop":
+			return 2; // Vocabulary Match: 2 points
+		case "text_input":
+			return 3; // Grammar Exercise: 3 points
+		case "image_based":
+			return 2; // Vocabulary Match: 2 points
+		default:
+			return 2; // Default base points
+	}
 }
 
 function generateFeedback(
