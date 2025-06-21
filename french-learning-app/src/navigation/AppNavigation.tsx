@@ -24,6 +24,7 @@ import { PersonalizedLearningScreen } from "../screens/PersonalizedLearningScree
 import { ConversationalAIScreen } from "../screens/ConversationalAIScreen";
 import { ConversationalAITestScreen } from "../screens/ConversationalAITestScreen";
 import { ThemeSettingsScreen } from "../screens/ThemeSettingsScreen";
+import { GamificationScreen } from "../screens/GamificationScreen";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../constants/theme";
 import { deepLinkHandler } from "../utils/deepLinkHandler";
@@ -55,6 +56,7 @@ export type AppStackParamList = {
 	ConversationalAI: undefined;
 	ConversationalAITest: undefined;
 	ThemeSettings: undefined;
+	Gamification: undefined;
 	// Add more screens as they are created
 };
 
@@ -128,6 +130,7 @@ const AppNavigator: React.FC = () => {
 				component={ConversationalAITestScreen}
 			/>
 			<AppStack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
+			<AppStack.Screen name="Gamification" component={GamificationScreen} />
 		</AppStack.Navigator>
 	);
 };

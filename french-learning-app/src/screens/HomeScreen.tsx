@@ -58,6 +58,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 			color: currentTheme.colors.secondary,
 			onPress: () => navigation.navigate("PersonalizedLearning"),
 		},
+		{
+			title: "🎮 Gamification",
+			description: "Track achievements & streaks",
+			icon: "trophy" as keyof typeof Ionicons.glyphMap,
+			color: currentTheme.colors.warning,
+			onPress: () => navigation.navigate("Gamification"),
+		},
 	];
 
 	const quickActions = [
