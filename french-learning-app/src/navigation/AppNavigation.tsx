@@ -37,6 +37,7 @@ import { deepLinkHandler } from "../utils/deepLinkHandler";
 import { SplashScreen } from "../screens/SplashScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { TabNavigation } from "./TabNavigation";
+import { VocabularyPracticeScreen } from "../screens/VocabularyPracticeScreen";
 
 // --- Navigation Param List Types ---
 // Auth stack for login/registration flows
@@ -163,6 +164,10 @@ const AppNavigator: React.FC = () => {
 				component={ConversationalAIScreen}
 			/>
 			<AppStack.Screen name="AITest" component={AITestScreen} />
+			<AppStack.Screen
+				name="VocabularyPractice"
+				component={VocabularyPracticeScreen}
+			/>
 			{/* Add other detail screens as needed */}
 		</AppStack.Navigator>
 	);
