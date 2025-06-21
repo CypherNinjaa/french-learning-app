@@ -481,13 +481,18 @@ Return an array of ${count} questions in this exact JSON format.`,
       day: {
         remaining: Math.max(0, this.rateLimits.maxRequestsPerDay - this.requestTracker.day.count),
         resetTime: this.requestTracker.day.resetTime,
-      },
-    };
+      },    };
   }
 }
 
 // Create and export singleton instance
-const groqService = new GroqAIService('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');
+const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+
+if (!groqApiKey) {
+  throw new Error('EXPO_PUBLIC_GROQ_API_KEY is not defined in environment variables');
+}
+
+const groqService = new GroqAIService(groqApiKey);
 
 export { groqService, GroqAIService };
 export type { RateLimitConfig, RequestTracker };
