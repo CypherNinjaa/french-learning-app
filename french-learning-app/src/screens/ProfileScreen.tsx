@@ -41,12 +41,12 @@ export const ProfileScreen = ({ navigation }: any) => {
 				level: formData.level,
 			});
 
-			if (result.success && result.data) {
-				// Update user context
+			if (result.success) {
+				// Accept success even if result.data is null (RLS may block select)
 				const updatedUser: User = {
 					...user,
-					username: result.data.username || user.username,
-					level: result.data.level as "beginner" | "intermediate" | "advanced",
+					username: formData.username,
+					level: formData.level as "beginner" | "intermediate" | "advanced",
 				};
 				setUser(updatedUser);
 				setEditing(false);
@@ -395,38 +395,21 @@ export const ProfileScreen = ({ navigation }: any) => {
 			</View>
 
 			{/* Settings Card */}
-			<View style={styles.section}>
+			{/* <View style={styles.section}>
 				<Text style={styles.sectionTitle}>Settings</Text>
-				<View
-					style={{
-						flexDirection: "row",
-						alignItems: "center",
-						marginBottom: 16,
-					}}
-				>
-					<Text style={{ flex: 1, fontSize: 16, color: theme.colors.text }}>
-						Theme
-					</Text>
+				<View style={styles.settingsRow}>
+					<Text style={styles.settingsThemeText}>Theme</Text>
 					<ThemeSwitchButton />
 				</View>
 				<TouchableOpacity
-					style={[
-						styles.actionButton,
-						{
-							backgroundColor: theme.colors.surface,
-							borderWidth: 1,
-							borderColor: theme.colors.primary,
-						},
-					]}
+					style={[styles.actionButton, styles.settingsThemeButton]}
 					onPress={() => navigation.navigate("ThemeSettings")}
 				>
-					<Text
-						style={[styles.actionButtonText, { color: theme.colors.primary }]}
-					>
+					<Text style={[styles.actionButtonText, styles.settingsThemeButtonText]}>
 						Theme Settings
 					</Text>
 				</TouchableOpacity>
-			</View>
+			</View> */}
 
 			{/* Account Actions Card */}
 			<View style={styles.section}>
@@ -647,5 +630,23 @@ const styles = StyleSheet.create({
 		color: theme.colors.error,
 		textAlign: "center",
 		marginTop: theme.spacing.xl,
+	},
+	settingsRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 16,
+	},
+	settingsThemeText: {
+		flex: 1,
+		fontSize: 16,
+		color: theme.colors.text,
+	},
+	settingsThemeButton: {
+		backgroundColor: theme.colors.surface,
+		borderWidth: 1,
+		borderColor: theme.colors.primary,
+	},
+	settingsThemeButtonText: {
+		color: theme.colors.primary,
 	},
 });

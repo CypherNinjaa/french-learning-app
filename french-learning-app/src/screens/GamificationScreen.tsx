@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../contexts/ThemeContext";
+import { theme } from "../constants/theme";
 import { ModernCard, ModernButton } from "../components/ModernUI";
 import {
 	AchievementBadge,
@@ -25,7 +25,6 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 
 export const GamificationScreen: React.FC = () => {
-	const { theme } = useTheme();
 	const {
 		achievements,
 		dailyChallenge,

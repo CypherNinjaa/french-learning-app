@@ -14,6 +14,7 @@ import {
 	MaterialCommunityIcons,
 	FontAwesome5,
 } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 const aiTools = [
 	{
@@ -28,7 +29,7 @@ const aiTools = [
 				color={theme.colors.primary}
 			/>
 		),
-		screen: "AIConversationScreen",
+		screen: "ConversationalAI",
 	},
 	{
 		key: "grammar_correction",
@@ -42,21 +43,21 @@ const aiTools = [
 				color={theme.colors.primary}
 			/>
 		),
-		screen: "GrammarCorrectionScreen",
+		screen: "AITest",
 	},
-	{
-		key: "vocab_quiz",
-		title: "Vocabulary Quiz",
-		description: "Test and expand your vocabulary with smart AI quizzes.",
-		icon: (
-			<FontAwesome5
-				name="question-circle"
-				size={32}
-				color={theme.colors.primary}
-			/>
-		),
-		screen: "VocabularyQuizScreen",
-	},
+	// {
+	// 	key: "vocab_quiz",
+	// 	title: "Vocabulary Quiz",
+	// 	description: "Test and expand your vocabulary with smart AI quizzes.",
+	// 	icon: (
+	// 		<FontAwesome5
+	// 			name="question-circle"
+	// 			size={32}
+	// 			color={theme.colors.primary}
+	// 		/>
+	// 	),
+	// 	screen: "AITest",
+	// },
 	{
 		key: "pronunciation_coach",
 		title: "Pronunciation Coach",
@@ -64,17 +65,17 @@ const aiTools = [
 		icon: (
 			<Ionicons name="mic-outline" size={32} color={theme.colors.primary} />
 		),
-		screen: "PronunciationCoachScreen",
+		screen: "PronunciationTest",
 	},
 	// Add more tools as needed
 ];
 
-export const PracticeScreen: React.FC<{ navigation?: any }> = ({
-	navigation,
-}) => {
+export const PracticeScreen: React.FC = () => {
+	const navigation = useNavigation();
 	const handleToolPress = (screen: string, title: string) => {
-		if (navigation && navigation.navigate) {
-			navigation.navigate(screen);
+		const nav: any = navigation;
+		if (nav && nav.navigate) {
+			nav.navigate(screen);
 		} else {
 			Alert.alert(title, "This feature is coming soon!");
 		}
@@ -84,10 +85,10 @@ export const PracticeScreen: React.FC<{ navigation?: any }> = ({
 		<View style={styles.container}>
 			<View style={styles.headerRow}>
 				<Text style={styles.title}>Practice & AI</Text>
-				<ThemeSwitchButton />
+				{/* <ThemeSwitchButton /> */}
 			</View>
 			<Text style={styles.subtitle}>
-				Access AI tools, quizzes, and gamification features here.
+				Access AI tools, quizzes features here.
 			</Text>
 			<ScrollView
 				contentContainerStyle={styles.toolsList}

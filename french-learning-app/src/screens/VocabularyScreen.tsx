@@ -10,7 +10,7 @@ import {
 	Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../contexts/ThemeContext";
+import { theme } from "../constants/theme";
 import { useAuth } from "../contexts/AuthContext";
 import { ModernCard, ModernButton } from "../components/ModernUI";
 import { ContentManagementService } from "../services/contentManagementService";
@@ -39,7 +39,6 @@ interface VocabularyScreenProps {
 export const VocabularyScreen: React.FC<VocabularyScreenProps> = ({
 	navigation,
 }) => {
-	const { theme } = useTheme();
 	const { user } = useAuth();
 	const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
 	const [loading, setLoading] = useState(true);

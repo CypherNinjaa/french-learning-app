@@ -9,10 +9,10 @@ import {
 	RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { ModernCard } from "../components/ModernUI";
 import { ContentManagementService } from "../services/contentManagementService";
+import { theme } from "../constants/theme";
 
 interface Level {
 	id: number;
@@ -29,7 +29,6 @@ interface LevelsScreenProps {
 }
 
 export const LevelsScreen: React.FC<LevelsScreenProps> = ({ navigation }) => {
-	const { theme } = useTheme();
 	const { user } = useAuth();
 	const [levels, setLevels] = useState<Level[]>([]);
 	const [loading, setLoading] = useState(true);
