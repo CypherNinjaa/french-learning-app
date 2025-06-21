@@ -28,8 +28,10 @@
 		"web": {
 			"favicon": "./assets/favicon.png"
 		},
-		"linking": {
-			"prefixes": ["frenchlearning://", "https://your-app-domain.com"]
+		"extra": {
+			"eas": {
+				"projectId": "7935879c-c4e2-417b-88c0-3759a7fa0f53"
+			}
 		}
 	}
 }
