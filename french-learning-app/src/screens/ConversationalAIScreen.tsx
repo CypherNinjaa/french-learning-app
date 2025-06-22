@@ -142,25 +142,45 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 						},
 					},
 				]
-			);			// Complete the conversation practice task with gamification integration
-			if (user && currentContext && currentContext.conversationHistory.length >= 5) {
+			); // Complete the conversation practice task with gamification integration
+			if (
+				user &&
+				currentContext &&
+				currentContext.conversationHistory.length >= 5
+			) {
 				const conversationLength = currentContext.conversationHistory.length;
 				const exchangeCount = Math.floor(conversationLength / 2); // Approximate exchanges
-				
+
 				// Award points for conversation practice
 				await completeActivity("conversation_practice", 75, {
 					exchangeCount,
 					conversationTopic: selectedTopic,
 					difficultyLevel: selectedLevel,
-					messageCount: conversationLength
+					messageCount: conversationLength,
 				});
 			}
 		} catch (err) {
 			Alert.alert("Error", "Failed to get conversation summary.");
 		}
-	}, [currentContext, getConversationSummary, clearConversation, completeActivity, user, selectedTopic, selectedLevel]);
-
+	}, [
+		currentContext,
+		getConversationSummary,
+		clearConversation,
+		completeActivity,
+		user,
+		selectedTopic,
+		selectedLevel,
+	]);
 	const handleGoBack = () => {
+		const goBackSafely = () => {
+			if (navigation.canGoBack()) {
+				navigation.goBack();
+			} else {
+				// Fallback to navigate to Practice tab if no back stack
+				navigation.navigate("MainTabs", { screen: "Practice" });
+			}
+		};
+
 		if (
 			conversationStarted &&
 			currentContext &&
@@ -176,13 +196,13 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 						style: "destructive",
 						onPress: () => {
 							clearConversation();
-							navigation.goBack();
+							goBackSafely();
 						},
 					},
 				]
 			);
 		} else {
-			navigation.goBack();
+			goBackSafely();
 		}
 	};
 
