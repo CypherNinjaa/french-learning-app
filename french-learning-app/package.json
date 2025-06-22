@@ -7,7 +7,8 @@
 		"android": "expo start --android",
 		"ios": "expo start --ios",
 		"web": "expo start --web",
-		"test:stage-4-3": "node scripts/test-stage-4-3.js"
+		"test:stage-4-3": "node scripts/test-stage-4-3.js",
+		"type-check": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@expo/metro-runtime": "~5.0.4",

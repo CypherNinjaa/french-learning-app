@@ -124,7 +124,6 @@ const AppNavigator: React.FC = () => {
 		<AppStack.Navigator screenOptions={{ headerShown: false }}>
 			{/* Main Tab Navigation as the home screen */}
 			<AppStack.Screen name="MainTabs" component={TabNavigation} />
-
 			{/* Admin screens accessible from anywhere */}
 			<AppStack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
 			<AppStack.Screen
@@ -147,7 +146,16 @@ const AppNavigator: React.FC = () => {
 				name="PronunciationWordsManagement"
 				component={PronunciationWordsManagement}
 			/>
-
+			{/* Core app screens accessible from anywhere */}
+			<AppStack.Screen name="Progress" component={ProgressScreen} />
+			<AppStack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
+			<AppStack.Screen
+				name="PersonalizedLearning"
+				component={PersonalizedLearningScreen}
+			/>
+			<AppStack.Screen name="Levels" component={LevelsScreen} />
+			<AppStack.Screen name="Modules" component={ModulesScreen} />
+			<AppStack.Screen name="Gamification" component={GamificationScreen} />
 			{/* Detail screens accessible from anywhere */}
 			<AppStack.Screen name="Lesson" component={LessonScreen} />
 			<AppStack.Screen name="LessonList" component={LessonListScreen} />

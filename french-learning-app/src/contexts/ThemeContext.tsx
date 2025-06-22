@@ -14,6 +14,10 @@ import { theme as lightTheme, darkTheme, Theme } from "../constants/theme";
 
 interface ThemeContextValue {
 	theme: Theme;
+	themeMode: "light" | "dark" | "system";
+	isDark: boolean;
+	setTheme: (mode: "light" | "dark" | "system") => void;
+	systemColorScheme: ColorSchemeName;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -75,9 +79,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 		setThemeMode(mode);
 		saveThemePreference(mode);
 	};
-
 	const value: ThemeContextValue = {
 		theme: currentTheme,
+		themeMode,
+		isDark,
+		setTheme,
+		systemColorScheme,
 	};
 
 	return (
