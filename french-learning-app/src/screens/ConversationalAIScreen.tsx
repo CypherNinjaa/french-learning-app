@@ -20,6 +20,8 @@ import { theme } from "../constants/theme";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
+import { useGamification } from "../hooks/useGamification";
+import { useAuth } from "../contexts/AuthContext";
 
 interface ConversationalAIScreenProps {
 	navigation: any;
@@ -28,6 +30,8 @@ interface ConversationalAIScreenProps {
 export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 	navigation,
 }) => {
+	const { user } = useAuth();
+	const { completeActivity } = useGamification();
 	const {
 		isLoading,
 		error,
@@ -138,11 +142,23 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 						},
 					},
 				]
-			);
+			);			// Complete the conversation practice task with gamification integration
+			if (user && currentContext && currentContext.conversationHistory.length >= 5) {
+				const conversationLength = currentContext.conversationHistory.length;
+				const exchangeCount = Math.floor(conversationLength / 2); // Approximate exchanges
+				
+				// Award points for conversation practice
+				await completeActivity("conversation_practice", 75, {
+					exchangeCount,
+					conversationTopic: selectedTopic,
+					difficultyLevel: selectedLevel,
+					messageCount: conversationLength
+				});
+			}
 		} catch (err) {
 			Alert.alert("Error", "Failed to get conversation summary.");
 		}
-	}, [currentContext, getConversationSummary, clearConversation]);
+	}, [currentContext, getConversationSummary, clearConversation, completeActivity, user, selectedTopic, selectedLevel]);
 
 	const handleGoBack = () => {
 		if (
