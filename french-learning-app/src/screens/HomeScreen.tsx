@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 import { theme } from "../constants/theme";
+import { CommonActions } from "@react-navigation/native";
 
 interface HomeScreenProps {
 	navigation: any; // Will be properly typed with navigation types later
@@ -19,6 +20,47 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 	const { user, signOut, isAdmin } = useAuth();
 	const currentTheme = theme;
+
+	// Navigation helper function to handle both tab and stack navigation
+	const navigateToScreen = (screenName: string) => {
+		// For tab screens, navigate within the tab navigator
+		if (
+			[
+				"Learning",
+				"Practice",
+				"Vocabulary",
+				"PronunciationTest",
+				"Profile",
+			].includes(screenName)
+		) {
+			navigation.navigate(screenName);
+		} else {
+			// For stack screens, navigate to the parent navigator
+			navigation.getParent()?.navigate(screenName);
+		}
+	};
+
+	// Calculate dynamic learning progress similar to ProfileScreen
+	const calculateProgress = () => {
+		const totalPoints = user?.points || 0;
+		const streakDays = user?.streakDays || 0;
+		// Use real data if available, otherwise estimate from points
+		const lessonsCompleted =
+			user?.totalLessonsCompleted ?? Math.floor(totalPoints / 10);
+		const timeSpent = user?.totalTimeSpent ?? Math.floor(totalPoints / 2);
+
+		// Overall progress calculation (0-100%)
+		const pointsProgress = Math.min((totalPoints / 1000) * 100, 100);
+		const lessonsProgress = Math.min((lessonsCompleted / 50) * 100, 100);
+		const streakProgress = Math.min((streakDays / 30) * 100, 100);
+		const timeProgress = Math.min((timeSpent / 300) * 100, 100);
+
+		const overallProgress =
+			(pointsProgress + lessonsProgress + streakProgress + timeProgress) / 4;
+		return Math.round(overallProgress);
+	};
+
+	const progress = calculateProgress();
 
 	const avatar = user?.avatarUrl ? (
 		<Image source={{ uri: user.avatarUrl }} style={styles.avatarLarge} />
@@ -50,7 +92,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						</View>
 					</View>
 				</View>
-
 				{/* Stats Dashboard */}
 				<View style={styles.statsContainer}>
 					<View style={styles.statCard}>
@@ -79,14 +120,38 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						<Text style={styles.statLabel}>Level</Text>
 					</View>
 				</View>
-
+				{/* Learning Progress Section */}
+				<View style={styles.progressSection}>
+					<TouchableOpacity
+						style={styles.progressCard}
+						onPress={() => navigateToScreen("Progress")}
+						activeOpacity={0.8}
+					>
+						<View style={styles.progressHeader}>
+							<View style={styles.progressHeaderLeft}>
+								<Ionicons name="trending-up" size={20} color="#667eea" />
+								<Text style={styles.progressTitle}>Learning Progress</Text>
+							</View>
+							<View style={styles.progressHeaderRight}>
+								<Text style={styles.progressPercentage}>{progress}%</Text>
+								<Ionicons name="chevron-forward" size={16} color="#999" />
+							</View>
+						</View>
+						<View style={styles.progressBar}>
+							<View style={[styles.progressFill, { width: `${progress}%` }]} />
+						</View>
+						<Text style={styles.progressSubtext}>
+							Tap to view detailed progress • {user?.points || 0} points earned
+						</Text>
+					</TouchableOpacity>
+				</View>
 				{/* Main Learning Actions */}
 				<View style={styles.actionsSection}>
 					<Text style={styles.sectionTitle}>Start Learning</Text>
 					<View style={styles.modernActionsGrid}>
 						<TouchableOpacity
 							style={[styles.modernActionCard, { backgroundColor: "#2196F3" }]}
-							onPress={() => navigation.navigate("Learning")}
+							onPress={() => navigateToScreen("Learning")}
 						>
 							<View style={styles.actionIconContainer}>
 								<Ionicons name="play-circle" size={32} color="#ffffff" />
@@ -94,10 +159,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 							<Text style={styles.actionTitle}>Start Learning</Text>
 							<Text style={styles.actionSubtitle}>Begin your lesson</Text>
 						</TouchableOpacity>
-
 						<TouchableOpacity
 							style={[styles.modernActionCard, { backgroundColor: "#E91E63" }]}
-							onPress={() => navigation.navigate("ConversationalAI")}
+							onPress={() => navigateToScreen("ConversationalAI")}
 						>
 							<View style={styles.actionIconContainer}>
 								<Ionicons name="chatbubbles" size={32} color="#ffffff" />
@@ -105,10 +169,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 							<Text style={styles.actionTitle}>AI Chat</Text>
 							<Text style={styles.actionSubtitle}>Practice conversation</Text>
 						</TouchableOpacity>
-
 						<TouchableOpacity
 							style={[styles.modernActionCard, { backgroundColor: "#4CAF50" }]}
-							onPress={() => navigation.navigate("Practice")}
+							onPress={() => navigateToScreen("Practice")}
 						>
 							<View style={styles.actionIconContainer}>
 								<Ionicons name="rocket" size={32} color="#ffffff" />
@@ -118,35 +181,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						</TouchableOpacity>
 					</View>
 				</View>
-
 				{/* Quick Actions */}
 				<View style={styles.quickActionsSection}>
 					<Text style={styles.sectionTitle}>Quick Actions</Text>
 					<View style={styles.quickActionsGrid}>
 						<TouchableOpacity
 							style={styles.quickActionCard}
-							onPress={() => navigation.navigate("Profile")}
+							onPress={() => navigateToScreen("Profile")}
 						>
 							<Ionicons name="person" size={24} color="#2196F3" />
 							<Text style={styles.quickActionText}>Profile</Text>
 						</TouchableOpacity>
 						<TouchableOpacity
 							style={styles.quickActionCard}
-							onPress={() => navigation.navigate("Progress")}
+							onPress={() => navigateToScreen("Progress")}
 						>
 							<Ionicons name="stats-chart" size={24} color="#4CAF50" />
 							<Text style={styles.quickActionText}>Progress</Text>
 						</TouchableOpacity>
 						<TouchableOpacity
 							style={styles.quickActionCard}
-							onPress={() => navigation.navigate("ThemeSettings")}
+							onPress={() => navigateToScreen("ThemeSettings")}
 						>
 							<Ionicons name="settings" size={24} color="#FF9800" />
 							<Text style={styles.quickActionText}>Settings</Text>
 						</TouchableOpacity>
 					</View>
 				</View>
-
 				{/* Admin Dashboard - Redesigned */}
 				{isAdmin() && (
 					<View style={styles.adminSection}>
@@ -154,7 +215,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 							style={styles.adminDashboardCard}
 							onPress={() => {
 								if (isAdmin()) {
-									navigation.navigate("AdminDashboard");
+									navigateToScreen("AdminDashboard");
 								} else {
 									alert("Access denied: Admins only.");
 								}
@@ -171,7 +232,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						</TouchableOpacity>
 					</View>
 				)}
-
 				<View style={{ height: 100 }} />
 			</ScrollView>
 		</SafeAreaView>
@@ -366,7 +426,6 @@ const styles = StyleSheet.create({
 		color: "#666666",
 		fontWeight: "400",
 	},
-
 	// Legacy styles for avatar (keeping these for compatibility)
 	avatarLarge: {
 		width: 64,
@@ -386,5 +445,63 @@ const styles = StyleSheet.create({
 		fontSize: 28,
 		fontWeight: "700",
 		color: "#888",
+	},
+
+	// Progress Section Styles
+	progressSection: {
+		paddingHorizontal: 20,
+		marginBottom: 24,
+	},
+	progressCard: {
+		backgroundColor: "#ffffff",
+		borderRadius: 16,
+		padding: 16,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.05,
+		shadowRadius: 4,
+		elevation: 2,
+	},
+	progressHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: 12,
+	},
+	progressHeaderLeft: {
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	progressHeaderRight: {
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	progressTitle: {
+		fontSize: 16,
+		fontWeight: "600",
+		color: "#1a1a1a",
+		marginLeft: 8,
+	},
+	progressPercentage: {
+		fontSize: 16,
+		fontWeight: "700",
+		color: "#667eea",
+		marginRight: 4,
+	},
+	progressBar: {
+		height: 8,
+		backgroundColor: "#f1f3f4",
+		borderRadius: 4,
+		marginBottom: 8,
+	},
+	progressFill: {
+		height: "100%",
+		backgroundColor: "#667eea",
+		borderRadius: 4,
+	},
+	progressSubtext: {
+		fontSize: 12,
+		color: "#666666",
+		fontWeight: "400",
 	},
 });
