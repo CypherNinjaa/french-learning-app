@@ -470,36 +470,51 @@ export class SupabaseService {
 				success: false,
 			};
 		}
-	}
-
-	static async uploadAvatar(
+	}	static async uploadAvatar(
 		userId: string,
 		imageUri: string
 	): Promise<ApiResponse<string>> {
 		try {
-			// Convert image URI to blob
-			const response = await fetch(imageUri);
-			const blob = await response.blob();
-			
 			// Create a unique filename
-			const fileExt = imageUri.split('.').pop() || 'jpg';
-			const fileName = `${userId}-${Date.now()}.${fileExt}`;
+			const fileExtension = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+			const fileName = `${userId}-${Date.now()}.${fileExtension}`;
 			const filePath = `avatars/${fileName}`;
+
+			// Read the file as ArrayBuffer for better compatibility
+			const response = await fetch(imageUri);
+			if (!response.ok) {
+				throw new Error(`Failed to read image: ${response.status} ${response.statusText}`);
+			}
+			
+			const arrayBuffer = await response.arrayBuffer();
+			const uint8Array = new Uint8Array(arrayBuffer);
 
 			// Upload to Supabase storage
 			const { data: uploadData, error: uploadError } = await supabase.storage
 				.from('avatars')
-				.upload(filePath, blob, {
+				.upload(filePath, uint8Array, {
 					cacheControl: '3600',
-					upsert: true
+					upsert: true,
+					contentType: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`,
 				});
 
-			if (uploadError) throw uploadError;
+			if (uploadError) {
+				console.error("Supabase upload error:", uploadError);
+				throw new Error(`Upload failed: ${uploadError.message}`);
+			}
+
+			if (!uploadData) {
+				throw new Error("Upload succeeded but no data returned");
+			}
 
 			// Get public URL
 			const { data: urlData } = supabase.storage
 				.from('avatars')
 				.getPublicUrl(filePath);
+
+			if (!urlData?.publicUrl) {
+				throw new Error("Failed to get public URL for uploaded image");
+			}
 
 			const avatarUrl = urlData.publicUrl;
 
@@ -509,7 +524,12 @@ export class SupabaseService {
 				.update({ avatar_url: avatarUrl })
 				.eq('id', userId);
 
-			if (updateError) throw updateError;
+			if (updateError) {
+				console.error("Profile update error:", updateError);
+				// Even if profile update fails, the image was uploaded successfully
+				// We can still return the URL so the UI can be updated
+				throw new Error(`Failed to update profile: ${updateError.message}`);
+			}
 
 			return {
 				data: avatarUrl,
