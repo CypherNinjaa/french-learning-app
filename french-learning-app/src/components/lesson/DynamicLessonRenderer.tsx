@@ -26,6 +26,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
 import { FillInBlankRenderer } from "./question-types/FillInBlankRenderer";
+import { useGamification } from "../../hooks/useGamification";
 
 // Lesson state reducer
 const lessonReducer = (
@@ -153,6 +154,8 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 	onComplete,
 	onExit,
 }) => {
+	const { completeActivity, refreshAll } = useGamification();
+
 	const [state, dispatch] = useReducer(lessonReducer, {
 		lesson: null,
 		userProgress: null,
@@ -256,7 +259,6 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 		},
 		[state.userProgress, userId, lessonId]
 	);
-
 	const handleLessonComplete = useCallback(
 		async (finalScore: number, totalTime: number) => {
 			try {
@@ -265,7 +267,7 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 					payload: { score: finalScore, timeSpent: totalTime },
 				});
 
-				// Complete lesson in database
+				// Complete lesson in database with gamification integration
 				await LessonService.completeLesson(
 					userId,
 					lessonId,
@@ -273,13 +275,49 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 					totalTime
 				);
 
-				// Call parent completion handler
-				onComplete(finalScore, totalTime);
+				// Trigger gamification activity completion for UI feedback
+				const gamificationResult = await completeActivity(
+					"lesson_completion",
+					50, // Base points as per gamification rules
+					{
+						lessonId,
+						score: finalScore,
+						timeSpent: totalTime,
+						isPerfectScore: finalScore >= 100,
+						difficulty: state.lesson?.difficulty_level || "beginner",
+					}
+				);
+
+				// Show achievement/points feedback if any were earned
+				if (
+					gamificationResult?.pointsEarned &&
+					gamificationResult.pointsEarned.total_points > 0
+				) {
+					Alert.alert(
+						"🎉 Lesson Complete!",
+						`Great job! You earned ${gamificationResult.pointsEarned.total_points} points!` +
+							(gamificationResult.newAchievements.length > 0
+								? `\n\n🏆 New Achievement${
+										gamificationResult.newAchievements.length > 1 ? "s" : ""
+								  } Unlocked!`
+								: ""),
+						[
+							{
+								text: "Continue",
+								onPress: () => onComplete(finalScore, totalTime),
+							},
+						]
+					);
+				} else {
+					// Call parent completion handler
+					onComplete(finalScore, totalTime);
+				}
 			} catch (error) {
+				console.error("Error completing lesson:", error);
 				Alert.alert("Error", "Failed to complete lesson. Please try again.");
 			}
 		},
-		[userId, lessonId, onComplete]
+		[userId, lessonId, onComplete, completeActivity, state.lesson]
 	);
 
 	const handleNextSection = () => {
