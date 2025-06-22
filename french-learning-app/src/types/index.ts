@@ -15,6 +15,9 @@ export interface User {
 	userRole?: UserRole;
 	// Stage 2.2 addition
 	avatarUrl?: string;
+	// Optional detailed progress tracking
+	totalLessonsCompleted?: number;
+	totalTimeSpent?: number; // in minutes
 }
 
 export interface UserProfile {

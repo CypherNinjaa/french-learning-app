@@ -28,6 +28,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 	const [passwordLoading, setPasswordLoading] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
 	const [editing, setEditing] = useState(false);
+	const [showGoalsDetail, setShowGoalsDetail] = useState(false);
 	const [uploadingAvatar, setUploadingAvatar] = useState(false);
 	const [showPasswordModal, setShowPasswordModal] = useState(false);
 	const [passwordData, setPasswordData] = useState({
@@ -40,7 +41,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 		email: user?.email || "",
 		level: user?.level || "beginner",
 	});
-
 	const achievements = [
 		{
 			id: 1,
@@ -84,7 +84,96 @@ export const ProfileScreen = ({ navigation }: any) => {
 			unlocked: false,
 			icon: "💬",
 		},
-	];
+	]; // Calculate dynamic learning progress
+	const calculateProgress = () => {
+		const totalPoints = user?.points || 0;
+		const streakDays = user?.streakDays || 0;
+		// Use real data if available, otherwise estimate from points
+		const lessonsCompleted =
+			user?.totalLessonsCompleted ?? Math.floor(totalPoints / 10);
+		const timeSpent = user?.totalTimeSpent ?? Math.floor(totalPoints / 2);
+
+		// Overall progress calculation (0-100%)
+		// Based on multiple factors: points, lessons, streak, time
+		const pointsProgress = Math.min((totalPoints / 1000) * 100, 100); // Max 1000 points = 100%
+		const lessonsProgress = Math.min((lessonsCompleted / 50) * 100, 100); // Max 50 lessons = 100%
+		const streakProgress = Math.min((streakDays / 30) * 100, 100); // Max 30 days = 100%
+		const timeProgress = Math.min((timeSpent / 300) * 100, 100); // Max 300 minutes = 100%
+
+		const overallProgress =
+			(pointsProgress + lessonsProgress + streakProgress + timeProgress) / 4;
+
+		// Weekly goals (5 different goals) - adaptive based on user level
+		const isBeginnerGoals = totalPoints < 100;
+
+		const weeklyGoals = isBeginnerGoals
+			? [
+					{ name: "First Login", completed: true, target: "Welcome!" },
+					{
+						name: "Earn Points",
+						completed: totalPoints >= 10,
+						target: "Earn 10 points",
+					},
+					{
+						name: "Start Streak",
+						completed: streakDays >= 1,
+						target: "1-day streak",
+					},
+					{
+						name: "Keep Learning",
+						completed: totalPoints >= 25,
+						target: "Reach 25 points",
+					},
+					{
+						name: "Build Habit",
+						completed: streakDays >= 2,
+						target: "2-day streak",
+					},
+			  ]
+			: [
+					{
+						name: "Daily Login",
+						completed: streakDays >= 1,
+						target: "Login daily",
+					},
+					{
+						name: "Points Goal",
+						completed: totalPoints >= 50,
+						target: "Earn 50+ points",
+					},
+					{
+						name: "Learning Streak",
+						completed: streakDays >= 3,
+						target: "3-day streak",
+					},
+					{
+						name: "Lesson Master",
+						completed: lessonsCompleted >= 5,
+						target: "Complete 5 lessons",
+					},
+					{
+						name: "Time Investment",
+						completed: timeSpent >= 60,
+						target: "60+ minutes practice",
+					},
+			  ];
+
+		const completedGoals = weeklyGoals.filter((goal) => goal.completed).length;
+		const weeklyProgress = (completedGoals / weeklyGoals.length) * 100;
+
+		return {
+			overall: Math.round(overallProgress),
+			weekly: Math.round(weeklyProgress),
+			weeklyGoals: completedGoals,
+			totalGoals: weeklyGoals.length,
+			goals: weeklyGoals,
+			lessonsCompleted,
+			timeSpent,
+			isBeginnerMode: isBeginnerGoals,
+		};
+	};
+
+	const progress = calculateProgress();
 	const handlePasswordChange = async () => {
 		if (!passwordData.newPassword || !passwordData.confirmPassword) {
 			Alert.alert("Error", "Please fill in all password fields");
@@ -488,7 +577,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 					</Text>
 				</View>
 			</View>
-
 			{/* Stats Cards */}
 			<View style={styles.statsContainer}>
 				<View style={styles.statCard}>
@@ -518,7 +606,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 					</View>
 				</View>
 			</View>
-
 			{/* Progress Section */}
 			<View style={styles.section}>
 				<View style={styles.sectionHeader}>
@@ -529,25 +616,80 @@ export const ProfileScreen = ({ navigation }: any) => {
 					<View style={styles.progressItem}>
 						<Text style={styles.progressLabel}>Overall Progress</Text>
 						<View style={styles.progressBar}>
-							<View style={[styles.progressFill, { width: "65%" }]} />
+							<View
+								style={[styles.progressFill, { width: `${progress.overall}%` }]}
+							/>
 						</View>
-						<Text style={styles.progressText}>65% Complete</Text>
+						<Text style={styles.progressText}>
+							{progress.overall}% Complete
+						</Text>
+						<Text style={styles.progressSubtext}>
+							{`${user?.points || 0} points • ${
+								progress.lessonsCompleted
+							} lessons • ${user?.streakDays || 0} day streak`}
+						</Text>
 					</View>
-					<View style={styles.progressItem}>
-						<Text style={styles.progressLabel}>This Week</Text>
+					<TouchableOpacity
+						style={styles.progressItem}
+						onPress={() => setShowGoalsDetail(!showGoalsDetail)}
+						activeOpacity={0.7}
+					>
+						<View style={styles.progressHeader}>
+							<Text style={styles.progressLabel}>Weekly Goals</Text>
+							<Ionicons
+								name={showGoalsDetail ? "chevron-up" : "chevron-down"}
+								size={16}
+								color="#667eea"
+							/>
+						</View>
 						<View style={styles.progressBar}>
 							<View
 								style={[
 									styles.progressFill,
-									{ width: "80%", backgroundColor: "#f5576c" },
+									{ width: `${progress.weekly}%`, backgroundColor: "#f5576c" },
 								]}
 							/>
 						</View>
-						<Text style={styles.progressText}>4/5 Goals Achieved</Text>
-					</View>
+						<Text style={styles.progressText}>
+							{progress.weeklyGoals}/{progress.totalGoals} Goals Achieved
+						</Text>
+						{showGoalsDetail && (
+							<View style={styles.goalsDetailContainer}>
+								{progress.goals.map((goal, index) => (
+									<View key={index} style={styles.goalItem}>
+										<Ionicons
+											name={
+												goal.completed ? "checkmark-circle" : "ellipse-outline"
+											}
+											size={16}
+											color={goal.completed ? "#4caf50" : "#b2bec3"}
+										/>
+										<View style={styles.goalContent}>
+											<Text
+												style={[
+													styles.goalName,
+													goal.completed && styles.goalCompleted,
+												]}
+											>
+												{goal.name}
+											</Text>
+											<Text style={styles.goalTarget}>{goal.target}</Text>
+										</View>
+									</View>
+								))}
+							</View>
+						)}
+						{!showGoalsDetail && (
+							<Text style={styles.progressSubtext}>
+								{progress.goals
+									.filter((g) => g.completed)
+									.map((g) => g.name)
+									.join(" • ") || "Tap to see goals"}
+							</Text>
+						)}
+					</TouchableOpacity>
 				</View>
 			</View>
-
 			{/* Achievements Section */}
 			<View style={styles.section}>
 				<View style={styles.sectionHeader}>
@@ -591,7 +733,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 					))}
 				</View>
 			</View>
-
 			{/* Profile Edit Section */}
 			<View style={styles.section}>
 				<View style={styles.sectionHeader}>
@@ -711,7 +852,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 					</TouchableOpacity>
 				)}
 			</View>
-
 			{/* Actions Section */}
 			<View style={styles.section}>
 				<View style={styles.sectionHeader}>
@@ -739,7 +879,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 					<Ionicons name="chevron-forward" size={18} color="#ff6b6b" />
 				</TouchableOpacity>
 			</View>
-
 			{/* Password Change Modal */}
 			<Modal
 				visible={showPasswordModal}
@@ -758,7 +897,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 								<Ionicons name="close" size={22} color="#666" />
 							</TouchableOpacity>
 						</View>
-
 						<View style={styles.modalBody}>
 							<View style={styles.inputContainer}>
 								<Text style={styles.inputLabel}>Current Password</Text>
@@ -822,7 +960,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 					</View>
 				</View>
 			</Modal>
-
 			<View style={styles.bottomSpacing} />
 		</ScrollView>
 	);
@@ -1016,6 +1153,46 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		color: "#b2bec3",
 		fontWeight: "500",
+	},
+	progressSubtext: {
+		fontSize: 11,
+		color: "#ddd6fe",
+		marginTop: 4,
+		fontStyle: "italic",
+	},
+	progressHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+	},
+	goalsDetailContainer: {
+		marginTop: 12,
+		paddingTop: 12,
+		borderTopWidth: 1,
+		borderTopColor: "#f1f3f4",
+	},
+	goalItem: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 8,
+		paddingVertical: 4,
+	},
+	goalContent: {
+		marginLeft: 12,
+		flex: 1,
+	},
+	goalName: {
+		fontSize: 14,
+		fontWeight: "600",
+		color: "#2d3436",
+	},
+	goalCompleted: {
+		color: "#4caf50",
+	},
+	goalTarget: {
+		fontSize: 12,
+		color: "#636e72",
+		marginTop: 2,
 	},
 	achievementsGrid: {
 		flexDirection: "row",
