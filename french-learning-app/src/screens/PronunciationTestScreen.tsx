@@ -48,9 +48,9 @@ export const PronunciationTestScreen: React.FC<
 		};
 		fetchWords();
 	}, []);
-
 	const handleGoBack = () => {
-		navigation.goBack();
+		// Since this is a tab screen, navigate to Home tab instead of going back
+		navigation.navigate("Home");
 	};
 
 	const handlePronunciationError = (error: any) => {
