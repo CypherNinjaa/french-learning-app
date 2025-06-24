@@ -17,10 +17,19 @@ export interface Lesson {
 
 export interface LessonContent {
   introduction?: string;
-  sections: LessonSection[];
+  sections?: LessonSection[];
   summary?: string;
   vocabulary_focus?: number[]; // vocabulary IDs
   grammar_focus?: number[]; // grammar rule IDs
+  examples?: LessonExample[]; // Global examples for the lesson
+}
+
+export interface LessonExample {
+  id?: string;
+  french: string;
+  english: string;
+  pronunciation?: string;
+  context?: string;
 }
 
 export interface LessonSection {
@@ -28,6 +37,7 @@ export interface LessonSection {
   type: SectionType;
   title?: string;
   content: any; // Dynamic content based on section type
+  examples?: LessonExample[]; // Section-specific examples
   order_index: number;
   is_required: boolean;
 }
