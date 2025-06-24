@@ -22,6 +22,7 @@ import {
 import { LessonService } from "../services/lessonService";
 import { useAdaptiveDifficulty } from "../hooks/useProgressTracking";
 import { theme } from "../constants/theme";
+import { LessonReader } from "../components/LessonReader";
 
 interface LessonListScreenProps {
 	route: {
@@ -44,11 +45,11 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 }) => {
 	const { moduleId, moduleName, userId } = route.params;
 	const navigation = useNavigation();
-
 	const [lessons, setLessons] = useState<LessonWithProgress[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
 	// Adaptive difficulty for recommendations
 	const { recommendedDifficulty } = useAdaptiveDifficulty({
@@ -63,30 +64,21 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 	const loadLessons = async () => {
 		try {
 			setError(null);
-
 			const { lessons: lessonsData, progress } =
-				await LessonService.getLessonsByModule(moduleId, userId); // Combine lessons with progress and determine unlock status
+				await LessonService.getLessonsByModule(moduleId, userId);
+
+			// Combine lessons with progress and determine unlock status
 			const lessonsWithProgress: LessonWithProgress[] = lessonsData.map(
 				(lesson: Lesson, index: number) => {
 					const userProgress = progress.find(
 						(p: UserProgress) => p.lesson_id === lesson.id
 					);
-					const isFirstLesson = index === 0;
-					const previousLessonCompleted =
-						index === 0 ||
-						progress.some(
-							(p: UserProgress) =>
-								p.lesson_id === lessonsData[index - 1]?.id &&
-								p.status === "completed" &&
-								p.score >= 60
-						);
 
 					return {
 						...lesson,
 						userProgress,
-						isUnlocked: isFirstLesson || previousLessonCompleted,
-						nextUnlocked:
-							userProgress?.status === "completed" && userProgress.score >= 60,
+						isUnlocked: true, // All lessons are always unlocked
+						nextUnlocked: true, // All lessons are always unlocked
 					};
 				}
 			);
@@ -106,19 +98,20 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 		loadLessons();
 	}, []);
 	const handleLessonPress = (lesson: LessonWithProgress) => {
-		if (!lesson.isUnlocked) {
-			Alert.alert(
-				"Lesson Locked",
-				"Complete the previous lesson to unlock this one.",
-				[{ text: "OK" }]
-			);
-			return;
-		}
+		console.log("Opening lesson:", lesson.title, "ID:", lesson.id);
+		setSelectedLesson(lesson);
+	};
 
-		// Navigate to lesson renderer
-		// Note: This would need proper navigation setup with typed navigation
-		console.log("Navigate to lesson:", lesson.id, lesson.title);
-		Alert.alert("Lesson Selected", `Opening ${lesson.title}...`);
+	const handleLessonComplete = async () => {
+		if (!selectedLesson) return;
+
+		try {
+			// Refresh lessons to update progress
+			await loadLessons();
+			setSelectedLesson(null);
+		} catch (error) {
+			console.error("Error completing lesson:", error);
+		}
 	};
 
 	const getDifficultyColor = (difficulty: DifficultyLevel): string => {
@@ -163,117 +156,114 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 				return "Not Started";
 		}
 	};
-
 	const renderLessonItem = ({
 		item,
 		index,
 	}: {
 		item: LessonWithProgress;
 		index: number;
-	}) => (
-		<TouchableOpacity
-			style={[styles.lessonCard, !item.isUnlocked && styles.lessonCardLocked]}
-			onPress={() => handleLessonPress(item)}
-			disabled={!item.isUnlocked}
-		>
-			<View style={styles.lessonHeader}>
-				<View style={styles.lessonNumber}>
-					<Text style={styles.lessonNumberText}>{index + 1}</Text>
-				</View>
+	}) => {
+		return (
+			<View style={styles.lessonCard}>
+				<TouchableOpacity
+					onPress={() => handleLessonPress(item)}
+					style={styles.clickableArea}
+					activeOpacity={0.7}
+				>
+					<View style={styles.lessonHeader}>
+						<View style={styles.lessonNumber}>
+							<Text style={styles.lessonNumberText}>{index + 1}</Text>
+						</View>
+						<View style={styles.lessonInfo}>
+							<Text style={styles.lessonTitle}>{item.title}</Text>
+							<View style={styles.lessonMeta}>
+								<View
+									style={[
+										styles.difficultyBadge,
+										{
+											backgroundColor: getDifficultyColor(
+												item.difficulty_level
+											),
+										},
+									]}
+								>
+									<Text style={styles.difficultyText}>
+										{item.difficulty_level}
+									</Text>
+								</View>
+								<Text style={styles.lessonType}>{item.lesson_type}</Text>
+								<Text style={styles.lessonDuration}>
+									{`${item.estimated_duration || 5} min`}
+								</Text>
+							</View>
+						</View>
+						<View style={styles.lessonStatus}>
+							<View style={styles.progressContainer}>
+								<View
+									style={[
+										styles.progressIndicator,
+										{ backgroundColor: getProgressColor(item.userProgress) },
+									]}
+								>
+									{item.userProgress?.status === "completed" && (
+										<Ionicons name="checkmark" size={16} color="#fff" />
+									)}
+									{item.userProgress?.status === "in_progress" && (
+										<View style={styles.progressDot} />
+									)}
+								</View>
+								<Text style={styles.progressText}>
+									{getProgressText(item.userProgress)}
+								</Text>
+								<Ionicons
+									name="chevron-forward"
+									size={16}
+									color="#666"
+									style={styles.chevron}
+								/>
+							</View>
+						</View>{" "}
+					</View>
+				</TouchableOpacity>
 
-				<View style={styles.lessonInfo}>
-					<Text
-						style={[
-							styles.lessonTitle,
-							!item.isUnlocked && styles.lessonTitleLocked,
-						]}
-					>
-						{item.title}
-					</Text>
-
-					<View style={styles.lessonMeta}>
-						<View
-							style={[
-								styles.difficultyBadge,
-								{ backgroundColor: getDifficultyColor(item.difficulty_level) },
-							]}
-						>
-							<Text style={styles.difficultyText}>{item.difficulty_level}</Text>
+				{item.userProgress && (
+					<View style={styles.lessonStats}>
+						<View style={styles.stat}>
+							<Ionicons name="star" size={16} color="#FFD700" />
+							<Text style={styles.statText}>{item.userProgress.score}%</Text>
 						</View>
 
-						<Text style={styles.lessonType}>{item.lesson_type}</Text>
-
-						<Text style={styles.lessonDuration}>
-							{item.estimated_duration || 5}min
-						</Text>
-					</View>
-				</View>
-
-				<View style={styles.lessonStatus}>
-					{!item.isUnlocked ? (
-						<Ionicons name="lock-closed" size={24} color="#999" />
-					) : (
-						<View style={styles.progressContainer}>
-							<View
-								style={[
-									styles.progressIndicator,
-									{ backgroundColor: getProgressColor(item.userProgress) },
-								]}
-							>
-								{item.userProgress?.status === "completed" && (
-									<Ionicons name="checkmark" size={16} color="#fff" />
-								)}
-								{item.userProgress?.status === "in_progress" && (
-									<View style={styles.progressDot} />
-								)}
-							</View>
-							<Text style={styles.progressText}>
-								{getProgressText(item.userProgress)}
+						<View style={styles.stat}>
+							<Ionicons name="time" size={16} color="#666" />
+							<Text style={styles.statText}>
+								{Math.floor(item.userProgress.time_spent / 60)}m
 							</Text>
 						</View>
-					)}
-				</View>
+
+						<View style={styles.stat}>
+							<Ionicons name="refresh" size={16} color="#666" />
+							<Text style={styles.statText}>{item.userProgress.attempts}x</Text>
+						</View>
+					</View>
+				)}
+
+				{item.difficulty_level === recommendedDifficulty && (
+					<View style={styles.recommendedBadge}>
+						<Ionicons name="trending-up" size={14} color="#007AFF" />
+						<Text style={styles.recommendedText}>Recommended</Text>
+					</View>
+				)}
 			</View>
-
-			{item.userProgress && (
-				<View style={styles.lessonStats}>
-					<View style={styles.stat}>
-						<Ionicons name="star" size={16} color="#FFD700" />
-						<Text style={styles.statText}>{item.userProgress.score}%</Text>
-					</View>
-
-					<View style={styles.stat}>
-						<Ionicons name="time" size={16} color="#666" />
-						<Text style={styles.statText}>
-							{Math.floor(item.userProgress.time_spent / 60)}m
-						</Text>
-					</View>
-
-					<View style={styles.stat}>
-						<Ionicons name="refresh" size={16} color="#666" />
-						<Text style={styles.statText}>{item.userProgress.attempts}x</Text>
-					</View>
-				</View>
-			)}
-
-			{item.difficulty_level === recommendedDifficulty && (
-				<View style={styles.recommendedBadge}>
-					<Ionicons name="trending-up" size={14} color="#007AFF" />
-					<Text style={styles.recommendedText}>Recommended</Text>
-				</View>
-			)}
-		</TouchableOpacity>
-	);
+		);
+	};
 
 	const renderHeader = () => (
 		<View style={styles.header}>
 			<Text style={styles.moduleTitle}>{moduleName}</Text>
 			<Text style={styles.moduleSubtitle}>
-				{lessons.length} lessons
-				{
+				{`${lessons.length} lessons, ${
 					lessons.filter((l) => l.userProgress?.status === "completed").length
-				}{" "}
-				completed
+				} completed`}
 			</Text>
 			{recommendedDifficulty && (
 				<View style={styles.recommendationContainer}>
@@ -332,6 +322,15 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 					/>
 				}
 			/>
+
+			{/* Lesson Reader Modal */}
+			{selectedLesson && (
+				<LessonReader
+					lesson={selectedLesson}
+					onClose={() => setSelectedLesson(null)}
+					onComplete={handleLessonComplete}
+				/>
+			)}
 		</SafeAreaView>
 	);
 };
@@ -554,5 +553,12 @@ const styles = StyleSheet.create({
 		color: "#fff",
 		fontSize: 16,
 		fontWeight: "600",
+	},
+	chevron: {
+		marginLeft: 4,
+		marginTop: 2,
+	},
+	clickableArea: {
+		flex: 1,
 	},
 });

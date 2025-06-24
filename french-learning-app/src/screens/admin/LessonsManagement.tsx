@@ -1,5 +1,5 @@
-// Stage 3.2: Lessons Management Screen
-// Comprehensive lessons management interface for admin users
+// Stage 4.4: Book-Style Lessons Management Screen
+// Enhanced lessons management interface for book-style content
 
 import React, { useState, useEffect } from "react";
 import {
@@ -10,34 +10,100 @@ import {
 	TouchableOpacity,
 	Alert,
 	RefreshControl,
+	ActivityIndicator,
+	SafeAreaView,
 	Modal,
 	TextInput,
-	ActivityIndicator,
 	Switch,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { ContentManagementService } from "../../services/contentManagementService";
+import { BookLessonEditor } from "./BookLessonEditor";
 import { ContentPreview } from "../../components/admin/ContentPreview";
 import { theme } from "../../constants/theme";
 import {
-	Lesson,
 	Module,
 	Level,
 	CreateLessonDto,
 	UpdateLessonDto,
+	LessonType as BaseLessonType,
+	DifficultyLevel as BaseDifficultyLevel,
+} from "../../types";
+import {
+	Lesson,
 	LessonType,
 	DifficultyLevel,
-} from "../../types";
+	LessonContent,
+} from "../../types/LessonTypes";
+
+// Helper types for form editing
+interface SimpleSection {
+	french: string;
+	english: string;
+	pronunciation?: string;
+	example?: string;
+}
+
+interface SimpleLessonContent {
+	introduction?: string;
+	sections?: SimpleSection[];
+}
+
+// Convert between simple form content and proper LessonContent
+const convertToLessonContent = (simple: SimpleLessonContent): LessonContent => {
+	return {
+		introduction: simple.introduction,
+		sections:
+			simple.sections?.map((section, index) => ({
+				id: `section-${index}`,
+				type: "text" as any, // Simple type for now
+				title: section.french,
+				content: {
+					french: section.french,
+					english: section.english,
+					pronunciation: section.pronunciation,
+				},
+				examples: section.example
+					? [
+							{
+								french: section.example,
+								english: section.example,
+								pronunciation: section.pronunciation,
+							},
+					  ]
+					: [],
+				order_index: index,
+				is_required: true,
+			})) || [],
+	};
+};
+
+const convertFromLessonContent = (
+	content: LessonContent
+): SimpleLessonContent => {
+	return {
+		introduction: content.introduction,
+		sections:
+			content.sections?.map((section) => ({
+				french: section.title || "",
+				english: (section.content as any)?.english || "",
+				pronunciation: (section.content as any)?.pronunciation || "",
+				example: section.examples?.[0]?.french || "",
+			})) || [],
+	};
+};
 
 interface LessonFormData {
 	title: string;
-	description: string;
+	description?: string;
 	module_id: number;
 	lesson_type: LessonType;
 	order_index: number;
-	estimated_time_minutes: number;
+	estimated_duration: number;
 	difficulty_level: DifficultyLevel;
-	content: any;
+	points_reward: number;
+	content: SimpleLessonContent; // Use simple content for form
 	is_active: boolean;
 }
 
@@ -60,7 +126,8 @@ export const LessonsManagement = () => {
 		module_id: 0,
 		lesson_type: "vocabulary",
 		order_index: 1,
-		estimated_time_minutes: 10,
+		estimated_duration: 15, // Updated field name
+		points_reward: 10, // Added field
 		difficulty_level: "beginner",
 		content: {
 			introduction: "",
@@ -87,9 +154,8 @@ export const LessonsManagement = () => {
 					setSelectedLevel(modulesRes.data[0].level_id);
 				}
 			}
-
 			if (lessonsRes.success && lessonsRes.data) {
-				setLessons(lessonsRes.data);
+				setLessons(lessonsRes.data as unknown as Lesson[]);
 			}
 		} catch (error) {
 			console.error("Error loading data:", error);
@@ -121,7 +187,8 @@ export const LessonsManagement = () => {
 			module_id: filteredModules.length > 0 ? filteredModules[0].id : 0,
 			lesson_type: "vocabulary",
 			order_index: maxOrder + 1,
-			estimated_time_minutes: 10,
+			estimated_duration: 15, // Updated field name
+			points_reward: 10, // Added field
 			difficulty_level: "beginner",
 			content: {
 				introduction: "",
@@ -132,22 +199,20 @@ export const LessonsManagement = () => {
 		setEditingLesson(null);
 		setModalVisible(true);
 	};
-
 	const openEditModal = (lesson: Lesson) => {
-		// Ensure content has proper structure
-		let content = lesson.content || {};
-		if (!content.introduction) content.introduction = "";
-		if (!content.sections) content.sections = [];
+		// Convert lesson content to simple form format
+		const simpleContent = convertFromLessonContent(lesson.content || {});
 
 		setFormData({
 			title: lesson.title,
-			description: lesson.description || "",
+			description: "", // Set default since this field may not exist in Lesson type
 			module_id: lesson.module_id,
 			lesson_type: lesson.lesson_type,
 			order_index: lesson.order_index,
-			estimated_time_minutes: lesson.estimated_time_minutes,
+			estimated_duration: lesson.estimated_duration, // Updated field name
+			points_reward: lesson.points_reward, // Added field
 			difficulty_level: lesson.difficulty_level,
-			content: content,
+			content: simpleContent,
 			is_active: lesson.is_active,
 		});
 		setEditingLesson(lesson);
@@ -202,18 +267,18 @@ export const LessonsManagement = () => {
 		}
 
 		setFormLoading(true);
-
 		try {
+			const convertedContent = convertToLessonContent(formData.content);
+
 			if (editingLesson) {
 				// Update existing lesson
 				const updateData: UpdateLessonDto = {
 					title: formData.title,
-					description: formData.description,
-					lesson_type: formData.lesson_type,
+					lesson_type: formData.lesson_type as any, // Cast to handle type mismatch
 					order_index: formData.order_index,
-					estimated_time_minutes: formData.estimated_time_minutes,
+					estimated_time_minutes: formData.estimated_duration, // Map to old field name for service
 					difficulty_level: formData.difficulty_level,
-					content: formData.content,
+					content: convertedContent,
 					is_active: formData.is_active,
 				};
 
@@ -230,13 +295,12 @@ export const LessonsManagement = () => {
 				// Create new lesson
 				const createData: CreateLessonDto = {
 					title: formData.title,
-					description: formData.description,
 					module_id: formData.module_id,
-					lesson_type: formData.lesson_type,
+					lesson_type: formData.lesson_type as any, // Cast to handle type mismatch
 					order_index: formData.order_index,
-					estimated_time_minutes: formData.estimated_time_minutes,
+					estimated_time_minutes: formData.estimated_duration, // Map to old field name for service
 					difficulty_level: formData.difficulty_level,
-					content: formData.content,
+					content: convertedContent,
 				};
 
 				const result = await ContentManagementService.createLesson(createData);
@@ -289,7 +353,6 @@ export const LessonsManagement = () => {
 			]
 		);
 	};
-
 	const getLessonTypeIcon = (type: LessonType) => {
 		const icons = {
 			vocabulary: "📝",
@@ -298,6 +361,8 @@ export const LessonsManagement = () => {
 			pronunciation: "🗣️",
 			reading: "📖",
 			listening: "👂",
+			cultural: "🎭",
+			mixed: "🎯",
 		};
 		return icons[type] || "📄";
 	};
@@ -309,6 +374,8 @@ export const LessonsManagement = () => {
 			pronunciation: "#FFEAA7",
 			reading: "#DDA0DD",
 			listening: "#FF6B6B",
+			cultural: "#FF9999",
+			mixed: "#B19CD9",
 		};
 		return colors[type] || theme.colors.primary;
 	};
@@ -388,6 +455,29 @@ export const LessonsManagement = () => {
 					},
 				],
 			},
+			cultural: {
+				introduction: "Explore French culture, traditions, and customs.",
+				sections: [
+					{
+						french: "La culture française",
+						english: "French culture",
+						pronunciation: "lah kul-TOOR frahn-SEHZ",
+						example: "Learn about French traditions and way of life.",
+					},
+				],
+			},
+			mixed: {
+				introduction:
+					"A comprehensive lesson combining multiple learning aspects.",
+				sections: [
+					{
+						french: "Leçon intégrée",
+						english: "Integrated lesson",
+						pronunciation: "luh-SOHN an-tay-GRAY",
+						example: "Practice vocabulary, grammar, and conversation together.",
+					},
+				],
+			},
 		};
 		return templates[lessonType] || templates.vocabulary;
 	};
@@ -408,7 +498,9 @@ export const LessonsManagement = () => {
 							</Text>
 							<Text style={styles.lessonTitle}>{lesson.title}</Text>
 						</View>
-						<Text style={styles.lessonDescription}>{lesson.description}</Text>
+						<Text style={styles.lessonDescription}>
+							{lesson.content?.introduction || "No description available"}
+						</Text>
 						<View style={styles.lessonMeta}>
 							<Text style={styles.metaText}>
 								{level?.name} • {module?.title}
@@ -468,7 +560,7 @@ export const LessonsManagement = () => {
 					<View style={styles.lessonDetailItem}>
 						<Text style={styles.detailLabel}>Duration:</Text>
 						<Text style={styles.detailValue}>
-							{lesson.estimated_time_minutes}min
+							{lesson.estimated_duration}min
 						</Text>
 					</View>
 					<View style={styles.lessonDetailItem}>
@@ -692,6 +784,8 @@ export const LessonsManagement = () => {
 									<Picker.Item label="Pronunciation" value="pronunciation" />
 									<Picker.Item label="Reading" value="reading" />
 									<Picker.Item label="Listening" value="listening" />
+									<Picker.Item label="Cultural" value="cultural" />
+									<Picker.Item label="Mixed" value="mixed" />
 								</Picker>
 							</View>
 
@@ -717,11 +811,11 @@ export const LessonsManagement = () => {
 							<Text style={styles.fieldLabel}>Estimated Time (minutes)</Text>
 							<TextInput
 								style={styles.textInput}
-								value={formData.estimated_time_minutes.toString()}
+								value={formData.estimated_duration.toString()}
 								onChangeText={(text) =>
 									setFormData((prev) => ({
 										...prev,
-										estimated_time_minutes: parseInt(text) || 10,
+										estimated_duration: parseInt(text) || 10,
 									}))
 								}
 								placeholder="Duration in minutes"
@@ -975,7 +1069,7 @@ export const LessonsManagement = () => {
 					setPreviewLesson(null);
 				}}
 				contentType="lesson"
-				content={previewLesson}
+				content={previewLesson as any}
 			/>
 		</View>
 	);

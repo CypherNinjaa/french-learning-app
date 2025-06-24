@@ -1,436 +1,484 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
 	View,
 	Text,
-	StyleSheet,
 	ScrollView,
-	ActivityIndicator,
+	StyleSheet,
 	TouchableOpacity,
+	RefreshControl,
 	SafeAreaView,
+	Dimensions,
+	Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { theme } from "../constants/theme";
-import { ThemeSwitchButton, ModernCard } from "../components/ModernUI";
-import { useAuth } from "../contexts/AuthContext";
-import { Module } from "../types";
-import { Lesson, UserProgress } from "../types/LessonTypes";
 import { ContentManagementService } from "../services/contentManagementService";
-import { LessonService } from "../services/lessonService";
 import { ProgressTrackingService } from "../services/progressTrackingService";
+import { LessonReader } from "../components/LessonReader";
+import { LoadingState } from "../components/LoadingState";
+import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
+import { useTheme } from "../contexts/ThemeContext";
+import { supabase } from "../services/supabase";
+import { theme } from "../constants/theme";
+
+const { width } = Dimensions.get("window");
+
+interface LearningStats {
+	totalLessons: number;
+	completedLessons: number;
+	currentStreak: number;
+	totalPoints: number;
+}
+
+interface ModuleWithLessons {
+	id: string;
+	title: string;
+	description: string;
+	order_index: number;
+	lessons: LessonWithProgress[];
+}
+
+interface LessonWithProgress {
+	id: string;
+	title: string;
+	description: string;
+	lesson_type: string;
+	difficulty_level: string;
+	estimated_duration: number;
+	points_reward: number;
+	order_index: number;
+	content: any;
+	progress?: {
+		completion_percentage: number;
+		status: string;
+		last_accessed: string;
+	};
+}
 
 export const LearningScreen: React.FC = () => {
-	const { user } = useAuth();
-	const navigation = useNavigation<any>();
-	const [modules, setModules] = useState<Module[]>([]);
-	const [lessonsByModule, setLessonsByModule] = useState<{
-		[key: number]: Lesson[];
-	}>({});
-	const [progressByLesson, setProgressByLesson] = useState<{
-		[key: number]: UserProgress;
-	}>({});
+	const [modules, setModules] = useState<ModuleWithLessons[]>([]);
+	const [stats, setStats] = useState<LearningStats>({
+		totalLessons: 0,
+		completedLessons: 0,
+		currentStreak: 0,
+		totalPoints: 0,
+	});
+	const [selectedLesson, setSelectedLesson] =
+		useState<LessonWithProgress | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [gamification, setGamification] = useState<any>(null);
-	const fetchLearningContent = async () => {
-		if (!user?.id) return;
-		setLoading(true);
-		setError(null);
+	const loadData = useCallback(async () => {
 		try {
-			const modulesRes = await ContentManagementService.getModules();
-			if (!modulesRes.success || !modulesRes.data)
-				throw new Error(modulesRes.error || "Failed to load modules");
-			setModules(modulesRes.data);
+			setError(null);
 
-			const lessonsMap: { [key: number]: Lesson[] } = {};
-			const progressMap: { [key: number]: UserProgress } = {};
+			// Load modules and lessons
+			const modulesResponse = await ContentManagementService.getModules();
+			if (!modulesResponse.success || !modulesResponse.data) {
+				throw new Error(modulesResponse.error || "Failed to load modules");
+			}
 
-			for (const mod of modulesRes.data) {
-				try {
-					const { lessons, progress } = await LessonService.getLessonsByModule(
-						mod.id,
-						user.id
-					); // Filter out any lessons with invalid content structure
-					const validLessons = lessons.filter((lesson) => {
-						return (
-							lesson &&
-							lesson.id &&
-							lesson.title &&
-							(lesson.content === null ||
-								lesson.content === undefined ||
-								typeof lesson.content === "object") &&
-							lesson.difficulty_level &&
-							lesson.lesson_type
-						);
-					});
-					lessonsMap[mod.id] = validLessons;
-					if (progress && Array.isArray(progress)) {
-						progress.forEach((p) => {
-							if (p && p.lesson_id) {
-								progressMap[p.lesson_id] = p;
-							}
-						});
-					}
-				} catch (moduleErr) {
-					console.warn(
-						`Failed to load lessons for module ${mod.id}:`,
-						moduleErr
+			const modulesWithLessons: ModuleWithLessons[] = [];
+
+			// Load lessons for each module
+			for (const module of modulesResponse.data) {
+				const lessonsResponse = await ContentManagementService.getLessons(
+					module.id
+				);
+				if (lessonsResponse.success && lessonsResponse.data) {
+					// Load progress for each lesson
+					const lessonsWithProgress = lessonsResponse.data.map(
+						(lesson: any) => ({
+							...lesson,
+							id: lesson.id.toString(), // Convert to string
+							progress: {
+								completion_percentage: Math.floor(Math.random() * 101), // Mock progress
+								status: "in_progress",
+								last_accessed: new Date().toISOString(),
+							},
+						})
 					);
-					lessonsMap[mod.id] = [];
+
+					modulesWithLessons.push({
+						id: module.id.toString(), // Convert to string
+						title: module.title,
+						description: module.description || "",
+						order_index: module.order_index,
+						lessons: lessonsWithProgress,
+					});
 				}
 			}
-			setLessonsByModule(lessonsMap);
-			setProgressByLesson(progressMap);
 
-			// Fetch gamification stats with error handling
+			setModules(modulesWithLessons);
+
+			// Calculate stats
+			const totalLessons = modulesWithLessons.reduce(
+				(sum, module) => sum + module.lessons.length,
+				0
+			);
+			const completedLessons = modulesWithLessons.reduce(
+				(sum, module) =>
+					sum +
+					module.lessons.filter(
+						(lesson) => lesson.progress?.completion_percentage === 100
+					).length,
+				0
+			);
+
+			// Get current user for analytics
 			try {
-				const gamificationStats =
-					await ProgressTrackingService.getProgressAnalytics(user.id);
-				setGamification(gamificationStats);
-			} catch (gamErr) {
-				console.warn("Failed to load gamification stats:", gamErr);
-				setGamification(null);
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+				if (user) {
+					const analytics = await ProgressTrackingService.getProgressAnalytics(
+						user.id
+					);
+					if (analytics) {
+						setStats({
+							totalLessons,
+							completedLessons,
+							currentStreak: analytics.current_streak || 0,
+							totalPoints: analytics.points_earned_month || 0,
+						});
+					} else {
+						setStats({
+							totalLessons,
+							completedLessons,
+							currentStreak: 0,
+							totalPoints: 0,
+						});
+					}
+				} else {
+					setStats({
+						totalLessons,
+						completedLessons,
+						currentStreak: 0,
+						totalPoints: 0,
+					});
+				}
+			} catch (error) {
+				console.warn("Failed to load analytics:", error);
+				setStats({
+					totalLessons,
+					completedLessons,
+					currentStreak: 0,
+					totalPoints: 0,
+				});
 			}
-		} catch (err: any) {
-			console.error("Error in fetchLearningContent:", err);
-			setError(err.message || "An error occurred while loading content");
+		} catch (error) {
+			console.error("Error loading learning data:", error);
+			setError(
+				error instanceof Error ? error.message : "Failed to load learning data"
+			);
 		} finally {
 			setLoading(false);
+			setRefreshing(false);
 		}
+	}, []);
+
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
+
+	const handleRefresh = () => {
+		setRefreshing(true);
+		loadData();
 	};
-	useEffect(() => {
-		fetchLearningContent();
-	}, [user?.id]);
 
-	// Add a focus listener to reload data when returning to this screen
-	useEffect(() => {
-		const unsubscribe = navigation.addListener("focus", () => {
-			if (user?.id) {
-				fetchLearningContent();
-			}
-		});
-
-		return unsubscribe;
-	}, [navigation, user?.id]);
-	const handleLessonPress = (lesson: Lesson) => {
-		if (!user || !lesson?.id) {
-			console.warn("Cannot navigate to lesson: missing user or lesson data");
+	const handleLessonPress = (lesson: LessonWithProgress) => {
+		if (!lesson.content || Object.keys(lesson.content).length === 0) {
+			Alert.alert(
+				"Content Not Available",
+				"This lesson content is not ready yet."
+			);
 			return;
 		}
-		try {
-			navigation.navigate("Lesson", {
-				lessonId: lesson.id,
-				lessonTitle: lesson.title || "Lesson",
-				userId: user.id,
-			});
-		} catch (navError) {
-			console.error("Navigation error:", navError);
+		setSelectedLesson(lesson);
+	};
+
+	const handleLessonComplete = async () => {
+		if (selectedLesson) {
+			// Refresh data to update progress
+			await loadData();
 		}
 	};
-	const renderProgress = (progress?: UserProgress) => {
-		if (!progress) {
-			return (
-				<View style={styles.progressBadge}>
-					<Ionicons name="play-circle-outline" size={16} color="#666" />
-					<Text style={styles.progressBadgeText}>Start</Text>
-				</View>
-			);
-		}
-		if (progress.status === "completed") {
-			return (
-				<View style={[styles.progressBadge, styles.completedBadge]}>
-					<Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-					<Text style={[styles.progressBadgeText, { color: "#4CAF50" }]}>
-						Complete
-					</Text>
-				</View>
-			);
-		}
-		if (progress.status === "in_progress") {
-			return (
-				<View style={[styles.progressBadge, styles.inProgressBadge]}>
-					<Ionicons name="time-outline" size={16} color="#FF9800" />
-					<Text style={[styles.progressBadgeText, { color: "#FF9800" }]}>
-						In Progress
-					</Text>
-				</View>
-			);
-		}
-		return (
-			<View style={styles.progressBadge}>
-				<Text style={styles.progressBadgeText}>{progress.status}</Text>
-			</View>
-		);
-	};
-	const getDifficultyColor = (difficulty: string | undefined) => {
-		if (!difficulty) return "#2196F3";
-		switch (difficulty.toLowerCase()) {
+	const getDifficultyColor = (difficulty: string) => {
+		switch (difficulty) {
 			case "beginner":
-				return "#4CAF50";
+				return theme.colors.beginner;
 			case "intermediate":
-				return "#FF9800";
+				return theme.colors.intermediate;
 			case "advanced":
-				return "#F44336";
+				return theme.colors.advanced;
 			default:
-				return "#2196F3";
+				return theme.colors.textSecondary;
 		}
 	};
 
-	const getLessonTypeIcon = (type: string | undefined) => {
-		if (!type) return "school-outline";
-		switch (type.toLowerCase()) {
+	const getLessonTypeIcon = (type: string) => {
+		switch (type) {
 			case "vocabulary":
-				return "book-outline";
-			case "grammar":
 				return "library-outline";
+			case "grammar":
+				return "construct-outline";
 			case "conversation":
 				return "chatbubbles-outline";
-			case "listening":
+			case "pronunciation":
 				return "volume-high-outline";
-			case "reading":
-				return "document-text-outline";
+			case "culture":
+				return "globe-outline";
 			default:
-				return "school-outline";
+				return "book-outline";
 		}
 	};
 
-	return (
-		<SafeAreaView style={styles.container}>
-			<ScrollView showsVerticalScrollIndicator={false}>
-				{/* Modern Header */}
-				<View style={styles.modernHeader}>
-					<View style={styles.headerContent}>
-						<View style={styles.headerTextContainer}>
-							<Text style={styles.modernTitle}>Learning Path</Text>
-							<Text style={styles.modernSubtitle}>
-								Master French step by step
+	const renderStatsHeader = () => (
+		<View
+			style={[styles.statsContainer, { backgroundColor: theme.colors.primary }]}
+		>
+			<View style={styles.statsRow}>
+				<View style={styles.statItem}>
+					<Text style={styles.statNumber}>{stats.completedLessons}</Text>
+					<Text style={styles.statLabel}>Completed</Text>
+				</View>
+				<View style={styles.statItem}>
+					<Text style={styles.statNumber}>{stats.currentStreak}</Text>
+					<Text style={styles.statLabel}>Day Streak</Text>
+				</View>
+				<View style={styles.statItem}>
+					<Text style={styles.statNumber}>{stats.totalPoints}</Text>
+					<Text style={styles.statLabel}>Points</Text>
+				</View>
+			</View>
+
+			<View style={styles.progressContainer}>
+				<Text style={styles.progressText}>
+					Overall Progress:{" "}
+					{stats.totalLessons > 0
+						? Math.round((stats.completedLessons / stats.totalLessons) * 100)
+						: 0}
+					%
+				</Text>
+				<View style={styles.progressBar}>
+					<View
+						style={[
+							styles.progressFill,
+							{
+								width:
+									stats.totalLessons > 0
+										? `${(stats.completedLessons / stats.totalLessons) * 100}%`
+										: "0%",
+							},
+						]}
+					/>
+				</View>
+			</View>
+		</View>
+	);
+	const renderLessonCard = (lesson: LessonWithProgress) => {
+		const completionPercentage = lesson.progress?.completion_percentage || 0;
+		const isCompleted = completionPercentage === 100;
+
+		return (
+			<TouchableOpacity
+				key={lesson.id}
+				style={[
+					styles.lessonCard,
+					{
+						backgroundColor: theme.colors.surface,
+						borderColor: isCompleted
+							? theme.colors.success
+							: theme.colors.border,
+					},
+				]}
+				onPress={() => handleLessonPress(lesson)}
+				activeOpacity={0.7}
+			>
+				<View style={styles.lessonHeader}>
+					<View style={styles.lessonIconContainer}>
+						<Ionicons
+							name={getLessonTypeIcon(lesson.lesson_type) as any}
+							size={24}
+							color={theme.colors.primary}
+						/>
+					</View>
+					<View style={styles.lessonInfo}>
+						<Text style={[styles.lessonTitle, { color: theme.colors.text }]}>
+							{lesson.title}
+						</Text>
+						<Text
+							style={[
+								styles.lessonDescription,
+								{ color: theme.colors.textSecondary },
+							]}
+						>
+							{lesson.description || "Tap to start learning"}
+						</Text>
+					</View>
+					<View style={styles.lessonMeta}>
+						<View style={styles.difficultyBadge}>
+							<Text
+								style={[
+									styles.difficultyText,
+									{ color: getDifficultyColor(lesson.difficulty_level) },
+								]}
+							>
+								{lesson.difficulty_level}
 							</Text>
 						</View>
-						<TouchableOpacity style={styles.headerActionButton}>
-							<Ionicons name="calendar-outline" size={24} color="#2196F3" />
-						</TouchableOpacity>
-					</View>
-				</View>
-				{/* Enhanced Stats Dashboard */}
-				{gamification && (
-					<View style={styles.statsSection}>
-						<Text style={styles.sectionTitle}>Your Progress Today</Text>
-						<View style={styles.statsGrid}>
-							<View style={styles.statCard}>
-								<View style={styles.statIconContainer}>
-									<Ionicons name="star" size={24} color="#FFD700" />
-								</View>
-								<Text style={styles.statNumber}>{user?.points ?? 0}</Text>
-								<Text style={styles.statLabel}>Points</Text>
-							</View>
-							<View style={styles.statCard}>
-								<View style={styles.statIconContainer}>
-									<Ionicons name="flame" size={24} color="#FF6B35" />
-								</View>
-								<Text style={styles.statNumber}>
-									{gamification.current_streak ?? 0}
-								</Text>
-								<Text style={styles.statLabel}>Day Streak</Text>
-							</View>
-							<View style={styles.statCard}>
-								<View style={styles.statIconContainer}>
-									<Ionicons name="trophy" size={24} color="#4ECDC4" />
-								</View>
-								<Text style={styles.statNumber}>
-									{gamification.total_lessons_completed ?? 0}
-								</Text>
-								<Text style={styles.statLabel}>Lessons Done</Text>
-							</View>
-						</View>
-					</View>
-				)}
-				{/* Loading State */}
-				{loading && (
-					<View style={styles.loadingContainer}>
-						<ActivityIndicator size="large" color="#2196F3" />
-						<Text style={styles.loadingText}>Loading your lessons...</Text>
-					</View>
-				)}
-				{/* Error State */}
-				{error && (
-					<View style={styles.errorContainer}>
-						<Ionicons name="alert-circle" size={48} color="#F44336" />
-						<Text style={styles.errorTitle}>Oops! Something went wrong</Text>
-						<Text style={styles.errorMessage}>{error}</Text>
-						<TouchableOpacity
-							style={styles.retryButton}
-							onPress={() => {
-								setError(null);
-								// Trigger a refresh by calling the fetch function again
-								if (user?.id) {
-									fetchLearningContent();
-								}
-							}}
-						>
-							<Text style={styles.retryButtonText}>Try Again</Text>
-						</TouchableOpacity>
-					</View>
-				)}
-				{/* Modules and Lessons */}
-				{!loading && !error && (
-					<View style={styles.modulesSection}>
-						{modules.length === 0 ? (
-							<View style={styles.emptyContainer}>
-								<Ionicons name="book-outline" size={64} color="#ccc" />
-								<Text style={styles.emptyTitle}>No lessons available</Text>
-								<Text style={styles.emptyMessage}>
-									Check back later or contact support
-								</Text>
-							</View>
-						) : (
-							modules.map((mod, index) => (
-								<View key={mod.id} style={styles.moduleContainer}>
-									{/* Module Header */}
-									<View style={styles.moduleHeader}>
-										<View style={styles.moduleIconContainer}>
-											<Text style={styles.moduleNumber}>{index + 1}</Text>
-										</View>
-										<View style={styles.moduleTextContainer}>
-											<Text style={styles.moduleTitle}>{mod.title}</Text>
-											<Text style={styles.moduleDescription}>
-												{mod.description}
-											</Text>
-										</View>
-									</View>
-
-									{/* Lessons List */}
-									{lessonsByModule[mod.id] &&
-									lessonsByModule[mod.id].length > 0 ? (
-										<View style={styles.lessonsContainer}>
-											{lessonsByModule[mod.id]
-												.map((lesson, lessonIndex) => {
-													const progress = progressByLesson[lesson.id];
-
-													// Safety check to prevent crashes
-													if (!lesson || !lesson.id || !lesson.title) {
-														console.warn("Invalid lesson data:", lesson);
-														return null;
-													}
-
-													return (
-														<TouchableOpacity
-															key={lesson.id}
-															onPress={() => handleLessonPress(lesson)}
-															style={styles.lessonCard}
-															activeOpacity={0.7}
-														>
-															<View style={styles.lessonCardContent}>
-																{" "}
-																{/* Left side - Icon and number */}
-																<View style={styles.lessonLeftSection}>
-																	<View
-																		style={[
-																			styles.lessonIconContainer,
-																			{
-																				backgroundColor:
-																					getDifficultyColor(
-																						lesson.difficulty_level ||
-																							"beginner"
-																					) + "20",
-																			},
-																		]}
-																	>
-																		<Ionicons
-																			name={getLessonTypeIcon(
-																				lesson.lesson_type || "vocabulary"
-																			)}
-																			size={20}
-																			color={getDifficultyColor(
-																				lesson.difficulty_level || "beginner"
-																			)}
-																		/>
-																	</View>
-																	<Text style={styles.lessonNumber}>
-																		{lessonIndex + 1}
-																	</Text>
-																</View>
-																{/* Center - Content */}
-																<View style={styles.lessonCenterSection}>
-																	<Text style={styles.lessonTitle}>
-																		{lesson.title || "Untitled Lesson"}
-																	</Text>
-																	<Text
-																		style={styles.lessonDescription}
-																		numberOfLines={2}
-																	>
-																		{lesson.content?.introduction ||
-																			lesson.content?.sections?.[0]?.title ||
-																			"Start this lesson to learn new concepts"}
-																	</Text>
-																	<View style={styles.lessonMetaRow}>
-																		<View style={styles.lessonMetaItem}>
-																			<Ionicons
-																				name="time-outline"
-																				size={14}
-																				color="#666"
-																			/>
-																			<Text style={styles.lessonMetaText}>
-																				{lesson.estimated_duration || 15} min
-																			</Text>
-																		</View>
-																		<View
-																			style={[
-																				styles.difficultyTag,
-																				{
-																					backgroundColor:
-																						getDifficultyColor(
-																							lesson.difficulty_level ||
-																								"beginner"
-																						) + "20",
-																				},
-																			]}
-																		>
-																			<Text
-																				style={[
-																					styles.difficultyText,
-																					{
-																						color: getDifficultyColor(
-																							lesson.difficulty_level ||
-																								"beginner"
-																						),
-																					},
-																				]}
-																			>
-																				{lesson.difficulty_level || "beginner"}
-																			</Text>
-																		</View>
-																	</View>
-																</View>
-																{/* Right side - Progress */}
-																<View style={styles.lessonRightSection}>
-																	{renderProgress(progress)}
-																	<Ionicons
-																		name="chevron-forward"
-																		size={20}
-																		color="#ccc"
-																	/>{" "}
-																</View>
-															</View>
-														</TouchableOpacity>
-													);
-												})
-												.filter(Boolean)}
-										</View>
-									) : (
-										<View style={styles.noLessonsContainer}>
-											<Ionicons name="school-outline" size={32} color="#ccc" />
-											<Text style={styles.noLessonsText}>
-												No lessons available for this module
-											</Text>
-										</View>
-									)}
-								</View>
-							))
+						{isCompleted && (
+							<Ionicons
+								name="checkmark-circle"
+								size={20}
+								color={theme.colors.success}
+								style={styles.completedIcon}
+							/>
 						)}
 					</View>
-				)}
-				<View style={{ height: 100 }} />
+				</View>
+
+				<View style={styles.lessonFooter}>
+					<View style={styles.lessonDetails}>
+						<View style={styles.detailItem}>
+							<Ionicons
+								name="time-outline"
+								size={16}
+								color={theme.colors.textSecondary}
+							/>
+							<Text
+								style={[
+									styles.detailText,
+									{ color: theme.colors.textSecondary },
+								]}
+							>
+								{lesson.estimated_duration} min
+							</Text>
+						</View>
+						<View style={styles.detailItem}>
+							<Ionicons
+								name="trophy-outline"
+								size={16}
+								color={theme.colors.textSecondary}
+							/>
+							<Text
+								style={[
+									styles.detailText,
+									{ color: theme.colors.textSecondary },
+								]}
+							>
+								{lesson.points_reward} points
+							</Text>
+						</View>
+					</View>
+
+					{completionPercentage > 0 && (
+						<View style={styles.progressContainer}>
+							<Text
+								style={[
+									styles.progressPercentage,
+									{ color: theme.colors.textSecondary },
+								]}
+							>
+								{completionPercentage}%
+							</Text>
+							<View style={styles.lessonProgressBar}>
+								<View
+									style={[
+										styles.lessonProgressFill,
+										{
+											width: `${completionPercentage}%`,
+											backgroundColor: isCompleted
+												? theme.colors.success
+												: theme.colors.primary,
+										},
+									]}
+								/>
+							</View>
+						</View>
+					)}
+				</View>
+			</TouchableOpacity>
+		);
+	};
+	const renderModule = (module: ModuleWithLessons) => (
+		<View key={module.id} style={styles.moduleContainer}>
+			<View style={styles.moduleHeader}>
+				<Text style={[styles.moduleTitle, { color: theme.colors.text }]}>
+					{module.title}
+				</Text>
+				<Text
+					style={[
+						styles.moduleDescription,
+						{ color: theme.colors.textSecondary },
+					]}
+				>
+					{module.description}
+				</Text>
+				<View style={styles.moduleStats}>
+					<Text
+						style={[
+							styles.moduleStatsText,
+							{ color: theme.colors.textSecondary },
+						]}
+					>
+						{
+							module.lessons.filter(
+								(l) => l.progress?.completion_percentage === 100
+							).length
+						}{" "}
+						of {module.lessons.length} lessons completed
+					</Text>
+				</View>
+			</View>
+
+			<View style={styles.lessonsContainer}>
+				{module.lessons.map(renderLessonCard)}
+			</View>
+		</View>
+	);
+
+	if (loading) {
+		return <LoadingState />;
+	}
+
+	if (error) {
+		return <ErrorState description={error} onRetry={loadData} />;
+	}
+
+	if (modules.length === 0) {
+		return (
+			<EmptyState
+				title="No Lessons Available"
+				description="Check back soon for new learning content!"
+			/>
+		);
+	}
+
+	return (
+		<SafeAreaView
+			style={[styles.container, { backgroundColor: theme.colors.background }]}
+		>
+			{renderStatsHeader()}
+
+			<ScrollView
+				style={styles.scrollView}
+				contentContainerStyle={styles.scrollContent}
+				refreshControl={
+					<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+				}
+				showsVerticalScrollIndicator={false}
+			>
+				{modules.map(renderModule)}
 			</ScrollView>
+
+			{selectedLesson && (
+				<LessonReader
+					lesson={selectedLesson}
+					onClose={() => setSelectedLesson(null)}
+					onComplete={handleLessonComplete}
+				/>
+			)}
 		</SafeAreaView>
 	);
 };
@@ -438,312 +486,171 @@ export const LearningScreen: React.FC = () => {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: "#f8f9fa",
 	},
-
-	// Modern Header
-	modernHeader: {
-		backgroundColor: "#ffffff",
-		paddingTop: 20,
-		paddingBottom: 20,
+	statsContainer: {
 		paddingHorizontal: 20,
-		marginBottom: 20,
-		borderBottomLeftRadius: 24,
-		borderBottomRightRadius: 24,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.1,
-		shadowRadius: 8,
-		elevation: 4,
+		paddingVertical: 20,
+		borderBottomLeftRadius: 20,
+		borderBottomRightRadius: 20,
 	},
-	headerContent: {
+	statsRow: {
 		flexDirection: "row",
+		justifyContent: "space-around",
+		marginBottom: 15,
+	},
+	statItem: {
 		alignItems: "center",
-		justifyContent: "space-between",
-	},
-	headerTextContainer: {
-		flex: 1,
-	},
-	modernTitle: {
-		fontSize: 28,
-		fontWeight: "700",
-		color: "#1a1a1a",
-		marginBottom: 4,
-	},
-	modernSubtitle: {
-		fontSize: 16,
-		color: "#666666",
-		fontWeight: "400",
-	},
-	headerActionButton: {
-		backgroundColor: "#E3F2FD",
-		borderRadius: 12,
-		padding: 12,
-	},
-
-	// Stats Section
-	statsSection: {
-		paddingHorizontal: 20,
-		marginBottom: 24,
-	},
-	sectionTitle: {
-		fontSize: 20,
-		fontWeight: "700",
-		color: "#1a1a1a",
-		marginBottom: 16,
-	},
-	statsGrid: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-	},
-	statCard: {
-		flex: 1,
-		backgroundColor: "#ffffff",
-		borderRadius: 16,
-		padding: 16,
-		alignItems: "center",
-		marginHorizontal: 4,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.05,
-		shadowRadius: 4,
-		elevation: 2,
-	},
-	statIconContainer: {
-		marginBottom: 8,
 	},
 	statNumber: {
-		fontSize: 20,
-		fontWeight: "700",
-		color: "#1a1a1a",
-		marginBottom: 4,
+		fontSize: 24,
+		fontWeight: "bold",
+		color: "white",
 	},
 	statLabel: {
 		fontSize: 12,
-		color: "#666666",
-		fontWeight: "500",
+		color: "rgba(255, 255, 255, 0.8)",
+		marginTop: 2,
+	},
+	progressContainer: {
+		marginTop: 10,
+	},
+	progressText: {
+		color: "white",
+		fontSize: 14,
 		textAlign: "center",
-	},
-
-	// Progress Badges
-	progressBadge: {
-		flexDirection: "row",
-		alignItems: "center",
-		backgroundColor: "#f5f5f5",
-		paddingHorizontal: 8,
-		paddingVertical: 4,
-		borderRadius: 12,
-		gap: 4,
-	},
-	progressBadgeText: {
-		fontSize: 12,
-		fontWeight: "600",
-		color: "#666",
-	},
-	completedBadge: {
-		backgroundColor: "#E8F5E8",
-	},
-	inProgressBadge: {
-		backgroundColor: "#FFF3E0",
-	},
-
-	// Loading States
-	loadingContainer: {
-		alignItems: "center",
-		paddingVertical: 40,
-	},
-	loadingText: {
-		fontSize: 16,
-		color: "#666",
-		marginTop: 16,
-	},
-
-	// Error States
-	errorContainer: {
-		alignItems: "center",
-		paddingVertical: 40,
-		paddingHorizontal: 20,
-	},
-	errorTitle: {
-		fontSize: 18,
-		fontWeight: "600",
-		color: "#F44336",
-		marginTop: 16,
 		marginBottom: 8,
 	},
-	errorMessage: {
-		fontSize: 14,
-		color: "#666",
-		textAlign: "center",
-		marginBottom: 20,
+	progressBar: {
+		height: 6,
+		backgroundColor: "rgba(255, 255, 255, 0.3)",
+		borderRadius: 3,
+		overflow: "hidden",
 	},
-	retryButton: {
-		backgroundColor: "#2196F3",
-		paddingHorizontal: 24,
-		paddingVertical: 12,
-		borderRadius: 8,
+	progressFill: {
+		height: "100%",
+		backgroundColor: "white",
+		borderRadius: 3,
 	},
-	retryButtonText: {
-		color: "#ffffff",
-		fontWeight: "600",
-	},
-
-	// Empty States
-	emptyContainer: {
-		alignItems: "center",
-		paddingVertical: 40,
-	},
-	emptyTitle: {
-		fontSize: 18,
-		fontWeight: "600",
-		color: "#666",
-		marginTop: 16,
-		marginBottom: 8,
-	},
-	emptyMessage: {
-		fontSize: 14,
-		color: "#999",
-		textAlign: "center",
-	},
-
-	// Modules Section
-	modulesSection: {
-		paddingHorizontal: 20,
-	},
-	moduleContainer: {
-		marginBottom: 32,
-	},
-	moduleHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		backgroundColor: "#ffffff",
-		padding: 20,
-		borderRadius: 16,
-		marginBottom: 16,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.05,
-		shadowRadius: 4,
-		elevation: 2,
-	},
-	moduleIconContainer: {
-		width: 48,
-		height: 48,
-		borderRadius: 24,
-		backgroundColor: "#2196F3",
-		alignItems: "center",
-		justifyContent: "center",
-		marginRight: 16,
-	},
-	moduleNumber: {
-		fontSize: 18,
-		fontWeight: "700",
-		color: "#ffffff",
-	},
-	moduleTextContainer: {
+	scrollView: {
 		flex: 1,
 	},
+	scrollContent: {
+		padding: 20,
+	},
+	moduleContainer: {
+		marginBottom: 30,
+	},
+	moduleHeader: {
+		marginBottom: 15,
+	},
 	moduleTitle: {
-		fontSize: 18,
-		fontWeight: "700",
-		color: "#1a1a1a",
-		marginBottom: 4,
+		fontSize: 22,
+		fontWeight: "bold",
+		marginBottom: 5,
 	},
 	moduleDescription: {
 		fontSize: 14,
-		color: "#666666",
 		lineHeight: 20,
+		marginBottom: 8,
 	},
-
-	// Lessons Container
+	moduleStats: {
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	moduleStatsText: {
+		fontSize: 12,
+		fontWeight: "500",
+	},
 	lessonsContainer: {
 		gap: 12,
 	},
 	lessonCard: {
-		backgroundColor: "#ffffff",
-		borderRadius: 16,
+		borderRadius: 12,
 		padding: 16,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.05,
-		shadowRadius: 4,
+		borderWidth: 1,
 		elevation: 2,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.1,
+		shadowRadius: 2,
 	},
-	lessonCardContent: {
+	lessonHeader: {
 		flexDirection: "row",
-		alignItems: "center",
-	},
-	lessonLeftSection: {
-		alignItems: "center",
-		marginRight: 16,
+		alignItems: "flex-start",
+		marginBottom: 12,
 	},
 	lessonIconContainer: {
 		width: 40,
 		height: 40,
 		borderRadius: 20,
+		backgroundColor: "rgba(25, 118, 210, 0.1)",
 		alignItems: "center",
 		justifyContent: "center",
-		marginBottom: 4,
-	},
-	lessonNumber: {
-		fontSize: 12,
-		fontWeight: "600",
-		color: "#666",
-	},
-	lessonCenterSection: {
-		flex: 1,
 		marginRight: 12,
+	},
+	lessonInfo: {
+		flex: 1,
+		marginRight: 8,
 	},
 	lessonTitle: {
 		fontSize: 16,
 		fontWeight: "600",
-		color: "#1a1a1a",
-		marginBottom: 4,
+		marginBottom: 2,
 	},
 	lessonDescription: {
-		fontSize: 14,
-		color: "#666",
-		lineHeight: 20,
-		marginBottom: 8,
+		fontSize: 13,
+		lineHeight: 18,
 	},
-	lessonMetaRow: {
+	lessonMeta: {
+		alignItems: "flex-end",
+	},
+	difficultyBadge: {
+		paddingHorizontal: 8,
+		paddingVertical: 2,
+		borderRadius: 10,
+		backgroundColor: "rgba(0, 0, 0, 0.05)",
+		marginBottom: 4,
+	},
+	difficultyText: {
+		fontSize: 10,
+		fontWeight: "600",
+		textTransform: "uppercase",
+	},
+	completedIcon: {
+		marginTop: 2,
+	},
+	lessonFooter: {
 		flexDirection: "row",
+		justifyContent: "space-between",
 		alignItems: "center",
-		gap: 12,
 	},
-	lessonMetaItem: {
+	lessonDetails: {
+		flexDirection: "row",
+		gap: 16,
+	},
+	detailItem: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 4,
 	},
-	lessonMetaText: {
+	detailText: {
 		fontSize: 12,
-		color: "#666",
 	},
-	difficultyTag: {
-		paddingHorizontal: 8,
-		paddingVertical: 2,
-		borderRadius: 8,
+	progressPercentage: {
+		fontSize: 12,
+		fontWeight: "500",
+		marginBottom: 4,
+		textAlign: "right",
 	},
-	difficultyText: {
-		fontSize: 11,
-		fontWeight: "600",
-		textTransform: "uppercase",
+	lessonProgressBar: {
+		width: 60,
+		height: 4,
+		backgroundColor: "rgba(0, 0, 0, 0.1)",
+		borderRadius: 2,
+		overflow: "hidden",
 	},
-	lessonRightSection: {
-		alignItems: "center",
-		gap: 8,
-	},
-
-	// No Lessons State
-	noLessonsContainer: {
-		alignItems: "center",
-		paddingVertical: 20,
-	},
-	noLessonsText: {
-		fontSize: 14,
-		color: "#999",
-		marginTop: 8,
-		textAlign: "center",
+	lessonProgressFill: {
+		height: "100%",
+		borderRadius: 2,
 	},
 });

@@ -328,3 +328,6 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 	},
 });
+// No stray text nodes or {" "} outside of <Text> components were found in the visible code.
+// However, ensure that all text, including spaces, is always inside <Text> components throughout the file.
+// If you still see the warning, check for any dynamic rendering or conditional rendering that might introduce stray text nodes.
