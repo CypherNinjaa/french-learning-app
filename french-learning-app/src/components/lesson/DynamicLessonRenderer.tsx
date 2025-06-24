@@ -194,16 +194,66 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 	useEffect(() => {
 		loadLesson();
 	}, [lessonId, userId]);
-
 	const loadLesson = async () => {
 		try {
 			dispatch({ type: "LOAD_LESSON_START" });
 
 			const lesson = await LessonService.getLessonById(lessonId);
+			console.log("Loaded lesson data:", JSON.stringify(lesson, null, 2));
+
 			if (!lesson) {
 				dispatch({ type: "LOAD_LESSON_ERROR", payload: "Lesson not found" });
 				return;
+			} // Validate lesson content structure
+			if (!lesson.content) {
+				console.warn("Lesson has no content, creating default structure");
+				lesson.content = {
+					introduction: lesson.title || "Welcome to this lesson",
+					sections: [
+						{
+							id: "default-section",
+							type: "text",
+							title: lesson.title,
+							content: "This lesson will help you learn French.",
+							order_index: 0,
+							is_required: true,
+						},
+					],
+				};
+			} else if (
+				!lesson.content.sections ||
+				lesson.content.sections.length === 0
+			) {
+				console.warn(
+					"Lesson content has no sections, creating default section"
+				);
+				lesson.content.sections = [
+					{
+						id: "default-section",
+						type: "text",
+						title: lesson.title,
+						content:
+							lesson.content.introduction ||
+							"This lesson will help you learn French.",
+						order_index: 0,
+						is_required: true,
+					},
+				];
 			}
+
+			// Ensure all sections have required properties
+			lesson.content.sections = lesson.content.sections.map(
+				(section, index) => ({
+					id: section.id || `section-${index}`,
+					type: section.type || "text",
+					title: section.title || `Section ${index + 1}`,
+					content: section.content || "No content available",
+					order_index: section.order_index ?? index,
+					is_required: section.is_required ?? true,
+				})
+			);
+
+			console.log("Processed lesson data:", JSON.stringify(lesson, null, 2));
 
 			const progress = await LessonService.initializeProgress(userId, lessonId);
 
@@ -212,6 +262,7 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 				payload: { lesson, progress },
 			});
 		} catch (error) {
+			console.error("Error loading lesson:", error);
 			dispatch({
 				type: "LOAD_LESSON_ERROR",
 				payload: "Failed to load lesson",
@@ -540,39 +591,97 @@ const LessonSectionRenderer: React.FC<{
 	const handleSectionComplete = (score = 100) => {
 		const timeSpent = Math.floor((Date.now() - sectionStartTime) / 1000);
 		onComplete(score, timeSpent);
-	};
-
-	// Replace renderSectionContent with a dynamic renderer
+	}; // Replace renderSectionContent with a dynamic renderer
 	const renderSectionContent = () => {
-		switch (section.type) {
-			case "vocabulary":
-				return renderVocabularySection(section.content);
-			case "grammar":
-				return renderGrammarSection(section.content);
-			case "practice": // Use 'practice' for fill-in-the-blank sections
-				return (
-					<FillInBlankRenderer
-						question={section.content}
-						onAnswer={(answers, isAllCorrect, timeSpent) =>
-							handleSectionComplete(isAllCorrect ? 100 : 0)
-						}
-						isAnswered={false}
-						userAnswer={[]}
-						showCorrectAnswer={false}
-						disabled={false}
-						timeUp={false}
-					/>
-				);
-			// Add more dynamic types as needed (e.g., quiz, pronunciation, etc.)
-			case "text":
-			default:
-				return renderTextSection(section.content);
+		console.log("Rendering section:", JSON.stringify(section, null, 2));
+
+		if (!section) {
+			console.warn("Section is null or undefined");
+			return (
+				<View style={styles.sectionContent}>
+					<Text style={styles.errorText}>No section data available</Text>
+					<Text style={styles.sectionText}>
+						This lesson may not have been properly configured.
+					</Text>
+				</View>
+			);
+		}
+
+		if (!section.type) {
+			console.warn("Section type is missing:", section);
+			// Try to infer section type from content
+			const inferredType =
+				section.content?.words || section.content?.colors
+					? "vocabulary"
+					: section.content?.pronouns
+					? "grammar"
+					: "text";
+
+			return (
+				<View style={styles.sectionContent}>
+					<Text style={styles.sectionText}>
+						{typeof section.content === "string"
+							? section.content
+							: section.content?.introduction ||
+							  section.content?.explanation ||
+							  "This section contains learning content."}
+					</Text>
+					{inferredType === "vocabulary" &&
+						section.content &&
+						renderVocabularySection(section.content)}
+					{inferredType === "grammar" &&
+						section.content &&
+						renderGrammarSection(section.content)}
+				</View>
+			);
+		}
+
+		try {
+			switch (section.type) {
+				case "vocabulary":
+					return renderVocabularySection(section.content);
+				case "grammar":
+					return renderGrammarSection(section.content);
+				case "practice": // Use 'practice' for fill-in-the-blank sections
+					return (
+						<FillInBlankRenderer
+							question={section.content}
+							onAnswer={(answers, isAllCorrect, timeSpent) =>
+								handleSectionComplete(isAllCorrect ? 100 : 0)
+							}
+							isAnswered={false}
+							userAnswer={[]}
+							showCorrectAnswer={false}
+							disabled={false}
+							timeUp={false}
+						/>
+					);
+				// Add more dynamic types as needed (e.g., quiz, pronunciation, etc.)
+				case "text":
+				default:
+					return renderTextSection(section.content);
+			}
+		} catch (error) {
+			console.error("Error rendering section content:", error);
+			return (
+				<View style={styles.sectionContent}>
+					<Text style={styles.errorText}>Error loading section content</Text>
+					<Text style={styles.sectionText}>
+						Please try refreshing the lesson.
+					</Text>
+				</View>
+			);
 		}
 	};
-
 	const renderVocabularySection = (content: any) => {
 		if (typeof content === "string") {
 			return <Text style={styles.sectionText}>{content}</Text>;
+		}
+
+		if (!content) {
+			return (
+				<Text style={styles.sectionText}>No vocabulary content available</Text>
+			);
 		}
 
 		const words =
@@ -590,36 +699,53 @@ const LessonSectionRenderer: React.FC<{
 					<Text style={styles.explanationText}>{explanation}</Text>
 				)}
 				<View style={styles.vocabularyGrid}>
-					{words.map((word: any, index: number) => (
-						<View key={index} style={styles.vocabularyCard}>
-							{/* Listen button top-right */}
-							<TouchableOpacity
-								style={styles.listenButtonCard}
-								onPress={() => SpeechService.speakVocabulary(word.french)}
-								accessibilityLabel={`Listen to pronunciation of ${word.french}`}
-							>
-								<Ionicons name="volume-high" size={22} color="#007AFF" />
-							</TouchableOpacity>
-							<Text style={styles.frenchWord}>{word.french}</Text>
-							<Text style={styles.englishWord}>{word.english}</Text>
-							{word.pronunciation && (
-								<Text style={styles.pronunciationText}>
-									/{word.pronunciation}/
-								</Text>
-							)}
-							{word.example && (
-								<Text style={styles.exampleText}>{word.example}</Text>
-							)}
-						</View>
-					))}
+					{words
+						.map((word: any, index: number) => {
+							// Safety check for word object
+							if (!word || (!word.french && !word.text)) {
+								return null;
+							}
+
+							const frenchWord = word.french || word.text || "";
+							const englishWord = word.english || word.translation || "";
+
+							return (
+								<View key={index} style={styles.vocabularyCard}>
+									{/* Listen button top-right */}
+									<TouchableOpacity
+										style={styles.listenButtonCard}
+										onPress={() => SpeechService.speakVocabulary(frenchWord)}
+										accessibilityLabel={`Listen to pronunciation of ${frenchWord}`}
+									>
+										<Ionicons name="volume-high" size={22} color="#007AFF" />
+									</TouchableOpacity>
+									<Text style={styles.frenchWord}>{frenchWord}</Text>
+									<Text style={styles.englishWord}>{englishWord}</Text>
+									{word.pronunciation && (
+										<Text style={styles.pronunciationText}>
+											/{word.pronunciation}/
+										</Text>
+									)}
+									{word.example && (
+										<Text style={styles.exampleText}>{word.example}</Text>
+									)}
+								</View>
+							);
+						})
+						.filter(Boolean)}
 				</View>
 			</View>
 		);
 	};
-
 	const renderGrammarSection = (content: any) => {
 		if (typeof content === "string") {
 			return <Text style={styles.sectionText}>{content}</Text>;
+		}
+
+		if (!content) {
+			return (
+				<Text style={styles.sectionText}>No grammar content available</Text>
+			);
 		}
 
 		const pronouns = content.pronouns || [];
@@ -631,32 +757,54 @@ const LessonSectionRenderer: React.FC<{
 					<Text style={styles.explanationText}>{explanation}</Text>
 				)}
 				<View style={styles.grammarList}>
-					{pronouns.map((pronoun: any, index: number) => (
-						<View key={index} style={styles.grammarItem}>
-							<TouchableOpacity
-								style={styles.listenButtonCard}
-								onPress={() => SpeechService.speakVocabulary(pronoun.french)}
-								accessibilityLabel={`Listen to pronunciation of ${pronoun.french}`}
-							>
-								<Ionicons name="volume-high" size={22} color="#007AFF" />
-							</TouchableOpacity>
-							<Text style={styles.frenchWord}>{pronoun.french}</Text>
-							<Text style={styles.englishWord}>{pronoun.english}</Text>
-							{pronoun.example && (
-								<Text style={styles.exampleText}>"{pronoun.example}"</Text>
-							)}
-						</View>
-					))}
+					{pronouns
+						.map((pronoun: any, index: number) => {
+							// Safety check for pronoun object
+							if (!pronoun || (!pronoun.french && !pronoun.text)) {
+								return null;
+							}
+
+							const frenchPronoun = pronoun.french || pronoun.text || "";
+							const englishPronoun =
+								pronoun.english || pronoun.translation || "";
+
+							return (
+								<View key={index} style={styles.grammarItem}>
+									<TouchableOpacity
+										style={styles.listenButtonCard}
+										onPress={() => SpeechService.speakVocabulary(frenchPronoun)}
+										accessibilityLabel={`Listen to pronunciation of ${frenchPronoun}`}
+									>
+										<Ionicons name="volume-high" size={22} color="#007AFF" />
+									</TouchableOpacity>
+									<Text style={styles.frenchWord}>{frenchPronoun}</Text>
+									<Text style={styles.englishWord}>{englishPronoun}</Text>
+									{pronoun.example && (
+										<Text style={styles.exampleText}>"{pronoun.example}"</Text>
+									)}
+								</View>
+							);
+						})
+						.filter(Boolean)}
 				</View>
 			</View>
 		);
 	};
-
 	const renderTextSection = (content: any) => {
+		if (typeof content === "string") {
+			return <Text style={styles.sectionText}>{content}</Text>;
+		}
+
+		if (!content) {
+			return <Text style={styles.sectionText}>No content available</Text>;
+		}
+
 		const text =
-			typeof content === "string"
-				? content
-				: content.text || JSON.stringify(content);
+			content.text ||
+			content.explanation ||
+			content.introduction ||
+			(typeof content === "object" ? JSON.stringify(content) : String(content));
+
 		return <Text style={styles.sectionText}>{text}</Text>;
 	};
 
