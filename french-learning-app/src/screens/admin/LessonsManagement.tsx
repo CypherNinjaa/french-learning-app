@@ -96,13 +96,10 @@ const convertFromLessonContent = (
 
 interface LessonFormData {
 	title: string;
-	description?: string;
 	module_id: number;
 	lesson_type: LessonType;
 	order_index: number;
-	estimated_duration: number;
 	difficulty_level: DifficultyLevel;
-	points_reward: number;
 	content: SimpleLessonContent; // Use simple content for form
 	is_active: boolean;
 }
@@ -122,12 +119,9 @@ export const LessonsManagement = () => {
 	const [formLoading, setFormLoading] = useState(false);
 	const [formData, setFormData] = useState<LessonFormData>({
 		title: "",
-		description: "",
 		module_id: 0,
 		lesson_type: "vocabulary",
 		order_index: 1,
-		estimated_duration: 15, // Updated field name
-		points_reward: 10, // Added field
 		difficulty_level: "beginner",
 		content: {
 			introduction: "",
@@ -180,15 +174,11 @@ export const LessonsManagement = () => {
 		const filteredModules = getFilteredModules();
 		const maxOrder =
 			lessons.length > 0 ? Math.max(...lessons.map((l) => l.order_index)) : 0;
-
 		setFormData({
 			title: "",
-			description: "",
 			module_id: filteredModules.length > 0 ? filteredModules[0].id : 0,
 			lesson_type: "vocabulary",
 			order_index: maxOrder + 1,
-			estimated_duration: 15, // Updated field name
-			points_reward: 10, // Added field
 			difficulty_level: "beginner",
 			content: {
 				introduction: "",
@@ -202,15 +192,11 @@ export const LessonsManagement = () => {
 	const openEditModal = (lesson: Lesson) => {
 		// Convert lesson content to simple form format
 		const simpleContent = convertFromLessonContent(lesson.content || {});
-
 		setFormData({
 			title: lesson.title,
-			description: "", // Set default since this field may not exist in Lesson type
 			module_id: lesson.module_id,
 			lesson_type: lesson.lesson_type,
 			order_index: lesson.order_index,
-			estimated_duration: lesson.estimated_duration, // Updated field name
-			points_reward: lesson.points_reward, // Added field
 			difficulty_level: lesson.difficulty_level,
 			content: simpleContent,
 			is_active: lesson.is_active,
@@ -269,14 +255,13 @@ export const LessonsManagement = () => {
 		setFormLoading(true);
 		try {
 			const convertedContent = convertToLessonContent(formData.content);
-
 			if (editingLesson) {
 				// Update existing lesson
 				const updateData: UpdateLessonDto = {
 					title: formData.title,
 					lesson_type: formData.lesson_type as any, // Cast to handle type mismatch
 					order_index: formData.order_index,
-					estimated_time_minutes: formData.estimated_duration, // Map to old field name for service
+					estimated_time_minutes: 15, // Default value
 					difficulty_level: formData.difficulty_level,
 					content: convertedContent,
 					is_active: formData.is_active,
@@ -298,7 +283,7 @@ export const LessonsManagement = () => {
 					module_id: formData.module_id,
 					lesson_type: formData.lesson_type as any, // Cast to handle type mismatch
 					order_index: formData.order_index,
-					estimated_time_minutes: formData.estimated_duration, // Map to old field name for service
+					estimated_time_minutes: 15, // Default value
 					difficulty_level: formData.difficulty_level,
 					content: convertedContent,
 				};
@@ -698,9 +683,9 @@ export const LessonsManagement = () => {
 					<View style={styles.modalHeader}>
 						<TouchableOpacity onPress={() => setModalVisible(false)}>
 							<Text style={styles.modalCancelButton}>Cancel</Text>
-						</TouchableOpacity>
+						</TouchableOpacity>{" "}
 						<Text style={styles.modalTitle}>
-							{editingLesson ? "Edit Lesson" : "Create Lesson"}
+							{editingLesson ? "Edit Lesson" : "Create New Lesson"}
 						</Text>
 						<TouchableOpacity onPress={handleSubmit} disabled={formLoading}>
 							<Text
@@ -717,8 +702,7 @@ export const LessonsManagement = () => {
 					<ScrollView style={styles.modalContent}>
 						{/* Basic Information */}
 						<View style={styles.formSection}>
-							<Text style={styles.sectionTitle}>Basic Information</Text>
-
+							<Text style={styles.sectionTitle}>Basic Information</Text>{" "}
 							<Text style={styles.fieldLabel}>Title *</Text>
 							<TextInput
 								style={styles.textInput}
@@ -728,19 +712,6 @@ export const LessonsManagement = () => {
 								}
 								placeholder="Lesson title"
 								placeholderTextColor={theme.colors.textSecondary}
-							/>
-
-							<Text style={styles.fieldLabel}>Description</Text>
-							<TextInput
-								style={[styles.textInput, styles.textArea]}
-								value={formData.description}
-								onChangeText={(text) =>
-									setFormData((prev) => ({ ...prev, description: text }))
-								}
-								placeholder="Lesson description"
-								placeholderTextColor={theme.colors.textSecondary}
-								multiline
-								numberOfLines={3}
 							/>
 						</View>
 						{/* Organization */}
@@ -803,25 +774,10 @@ export const LessonsManagement = () => {
 								keyboardType="numeric"
 								placeholderTextColor={theme.colors.textSecondary}
 							/>
-						</View>
+						</View>{" "}
 						{/* Lesson Settings */}
 						<View style={styles.formSection}>
 							<Text style={styles.sectionTitle}>Settings</Text>
-
-							<Text style={styles.fieldLabel}>Estimated Time (minutes)</Text>
-							<TextInput
-								style={styles.textInput}
-								value={formData.estimated_duration.toString()}
-								onChangeText={(text) =>
-									setFormData((prev) => ({
-										...prev,
-										estimated_duration: parseInt(text) || 10,
-									}))
-								}
-								placeholder="Duration in minutes"
-								keyboardType="numeric"
-								placeholderTextColor={theme.colors.textSecondary}
-							/>
 
 							<Text style={styles.fieldLabel}>Difficulty Level</Text>
 							<View style={styles.pickerContainer}>
@@ -855,10 +811,16 @@ export const LessonsManagement = () => {
 									thumbColor={formData.is_active ? "white" : "#f4f3f4"}
 								/>
 							</View>
-						</View>
+						</View>{" "}
 						{/* Content */}
 						<View style={styles.formSection}>
-							<Text style={styles.sectionTitle}>Content</Text>
+							<Text style={styles.sectionTitle}>Lesson Content</Text>
+							<Text style={styles.helpText}>
+								💡 Fill in the lesson introduction and add sections with French
+								text, English translations, pronunciation guides, and examples.
+								Use the "Load Template" button to get started with pre-filled
+								content for your lesson type.
+							</Text>
 							<View style={styles.contentEditor}>
 								<Text style={styles.fieldLabel}>Introduction</Text>
 								<TextInput
@@ -875,7 +837,6 @@ export const LessonsManagement = () => {
 									multiline
 									numberOfLines={2}
 								/>
-
 								<Text style={styles.fieldLabel}>Sections</Text>
 								{(formData.content.sections || []).map(
 									(section: any, index: number) => (
@@ -990,7 +951,6 @@ export const LessonsManagement = () => {
 										</View>
 									)
 								)}
-
 								<TouchableOpacity
 									style={styles.addSectionButton}
 									onPress={() => {
@@ -1011,8 +971,7 @@ export const LessonsManagement = () => {
 									}}
 								>
 									<Text style={styles.addSectionButtonText}>+ Add Section</Text>
-								</TouchableOpacity>
-
+								</TouchableOpacity>{" "}
 								<TouchableOpacity
 									style={styles.loadTemplateButton}
 									onPress={() => {
@@ -1021,41 +980,10 @@ export const LessonsManagement = () => {
 									}}
 								>
 									<Text style={styles.loadTemplateButtonText}>
-										Load Template
+										Load Template for {formData.lesson_type}
 									</Text>
 								</TouchableOpacity>
 							</View>
-							<Text style={styles.helpText}>
-								Use the form above to create structured lesson content, or edit
-								the JSON directly below if needed.
-							</Text>
-							<View style={styles.helpSection}>
-								<Text style={styles.helpTitle}>Content Structure Guide:</Text>
-								<Text style={styles.helpContent}>
-									• Introduction: A brief overview of the lesson{"\n"}•
-									Sections: Array of learning components, each with:{"\n"}-
-									French: The French text or word{"\n"}- English: The English
-									translation{"\n"}- Pronunciation: Optional pronunciation guide
-									{"\n"}- Example: Optional usage example
-								</Text>
-							</View>
-							<Text style={styles.fieldLabel}>Raw JSON (Advanced)</Text>
-							<TextInput
-								style={[styles.textInput, styles.textAreaLarge]}
-								value={JSON.stringify(formData.content, null, 2)}
-								onChangeText={(text) => {
-									try {
-										const parsed = JSON.parse(text);
-										setFormData((prev) => ({ ...prev, content: parsed }));
-									} catch (e) {
-										// Invalid JSON, keep the text as is for now
-									}
-								}}
-								placeholder="Enter lesson content as JSON"
-								placeholderTextColor={theme.colors.textSecondary}
-								multiline
-								numberOfLines={6}
-							/>
 						</View>
 					</ScrollView>
 				</View>
