@@ -32,7 +32,6 @@ export const LearningScreen: React.FC = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [gamification, setGamification] = useState<any>(null);
-
 	const fetchLearningContent = async () => {
 		if (!user?.id) return;
 		setLoading(true);
@@ -47,40 +46,86 @@ export const LearningScreen: React.FC = () => {
 			const progressMap: { [key: number]: UserProgress } = {};
 
 			for (const mod of modulesRes.data) {
-				const { lessons, progress } = await LessonService.getLessonsByModule(
-					mod.id,
-					user.id
-				);
-				lessonsMap[mod.id] = lessons;
-				progress.forEach((p) => {
-					progressMap[p.lesson_id] = p;
-				});
+				try {
+					const { lessons, progress } = await LessonService.getLessonsByModule(
+						mod.id,
+						user.id
+					); // Filter out any lessons with invalid content structure
+					const validLessons = lessons.filter((lesson) => {
+						return (
+							lesson &&
+							lesson.id &&
+							lesson.title &&
+							(lesson.content === null ||
+								lesson.content === undefined ||
+								typeof lesson.content === "object") &&
+							lesson.difficulty_level &&
+							lesson.lesson_type
+						);
+					});
+					lessonsMap[mod.id] = validLessons;
+					if (progress && Array.isArray(progress)) {
+						progress.forEach((p) => {
+							if (p && p.lesson_id) {
+								progressMap[p.lesson_id] = p;
+							}
+						});
+					}
+				} catch (moduleErr) {
+					console.warn(
+						`Failed to load lessons for module ${mod.id}:`,
+						moduleErr
+					);
+					lessonsMap[mod.id] = [];
+				}
 			}
 			setLessonsByModule(lessonsMap);
 			setProgressByLesson(progressMap);
 
-			// Fetch gamification stats
-			const gamificationStats =
-				await ProgressTrackingService.getProgressAnalytics(user.id);
-			setGamification(gamificationStats);
+			// Fetch gamification stats with error handling
+			try {
+				const gamificationStats =
+					await ProgressTrackingService.getProgressAnalytics(user.id);
+				setGamification(gamificationStats);
+			} catch (gamErr) {
+				console.warn("Failed to load gamification stats:", gamErr);
+				setGamification(null);
+			}
 		} catch (err: any) {
-			setError(err.message || "An error occurred");
+			console.error("Error in fetchLearningContent:", err);
+			setError(err.message || "An error occurred while loading content");
 		} finally {
 			setLoading(false);
 		}
 	};
-
 	useEffect(() => {
 		fetchLearningContent();
 	}, [user?.id]);
 
-	const handleLessonPress = (lesson: Lesson) => {
-		if (!user) return;
-		navigation.navigate("Lesson", {
-			lessonId: lesson.id,
-			lessonTitle: lesson.title,
-			userId: user.id,
+	// Add a focus listener to reload data when returning to this screen
+	useEffect(() => {
+		const unsubscribe = navigation.addListener("focus", () => {
+			if (user?.id) {
+				fetchLearningContent();
+			}
 		});
+
+		return unsubscribe;
+	}, [navigation, user?.id]);
+	const handleLessonPress = (lesson: Lesson) => {
+		if (!user || !lesson?.id) {
+			console.warn("Cannot navigate to lesson: missing user or lesson data");
+			return;
+		}
+		try {
+			navigation.navigate("Lesson", {
+				lessonId: lesson.id,
+				lessonTitle: lesson.title || "Lesson",
+				userId: user.id,
+			});
+		} catch (navError) {
+			console.error("Navigation error:", navError);
+		}
 	};
 	const renderProgress = (progress?: UserProgress) => {
 		if (!progress) {
@@ -117,8 +162,8 @@ export const LearningScreen: React.FC = () => {
 			</View>
 		);
 	};
-
-	const getDifficultyColor = (difficulty: string) => {
+	const getDifficultyColor = (difficulty: string | undefined) => {
+		if (!difficulty) return "#2196F3";
 		switch (difficulty.toLowerCase()) {
 			case "beginner":
 				return "#4CAF50";
@@ -131,7 +176,8 @@ export const LearningScreen: React.FC = () => {
 		}
 	};
 
-	const getLessonTypeIcon = (type: string) => {
+	const getLessonTypeIcon = (type: string | undefined) => {
+		if (!type) return "school-outline";
 		switch (type.toLowerCase()) {
 			case "vocabulary":
 				return "book-outline";
@@ -256,105 +302,119 @@ export const LearningScreen: React.FC = () => {
 									{lessonsByModule[mod.id] &&
 									lessonsByModule[mod.id].length > 0 ? (
 										<View style={styles.lessonsContainer}>
-											{lessonsByModule[mod.id].map((lesson, lessonIndex) => {
-												const progress = progressByLesson[lesson.id];
-												return (
-													<TouchableOpacity
-														key={lesson.id}
-														onPress={() => handleLessonPress(lesson)}
-														style={styles.lessonCard}
-														activeOpacity={0.7}
-													>
-														<View style={styles.lessonCardContent}>
-															{/* Left side - Icon and number */}
-															<View style={styles.lessonLeftSection}>
-																<View
-																	style={[
-																		styles.lessonIconContainer,
-																		{
-																			backgroundColor:
-																				getDifficultyColor(
-																					lesson.difficulty_level
-																				) + "20",
-																		},
-																	]}
-																>
-																	<Ionicons
-																		name={getLessonTypeIcon(lesson.lesson_type)}
-																		size={20}
-																		color={getDifficultyColor(
-																			lesson.difficulty_level
-																		)}
-																	/>
-																</View>
-																<Text style={styles.lessonNumber}>
-																	{lessonIndex + 1}
-																</Text>
-															</View>
+											{lessonsByModule[mod.id]
+												.map((lesson, lessonIndex) => {
+													const progress = progressByLesson[lesson.id];
 
-															{/* Center - Content */}
-															<View style={styles.lessonCenterSection}>
-																<Text style={styles.lessonTitle}>
-																	{lesson.title}
-																</Text>
-																<Text
-																	style={styles.lessonDescription}
-																	numberOfLines={2}
-																>
-																	{lesson.content?.introduction ||
-																		"Start this lesson to learn new concepts"}
-																</Text>
-																<View style={styles.lessonMetaRow}>
-																	<View style={styles.lessonMetaItem}>
-																		<Ionicons
-																			name="time-outline"
-																			size={14}
-																			color="#666"
-																		/>
-																		<Text style={styles.lessonMetaText}>
-																			{lesson.estimated_duration || 15} min
-																		</Text>
-																	</View>
+													// Safety check to prevent crashes
+													if (!lesson || !lesson.id || !lesson.title) {
+														console.warn("Invalid lesson data:", lesson);
+														return null;
+													}
+
+													return (
+														<TouchableOpacity
+															key={lesson.id}
+															onPress={() => handleLessonPress(lesson)}
+															style={styles.lessonCard}
+															activeOpacity={0.7}
+														>
+															<View style={styles.lessonCardContent}>
+																{" "}
+																{/* Left side - Icon and number */}
+																<View style={styles.lessonLeftSection}>
 																	<View
 																		style={[
-																			styles.difficultyTag,
+																			styles.lessonIconContainer,
 																			{
 																				backgroundColor:
 																					getDifficultyColor(
-																						lesson.difficulty_level
+																						lesson.difficulty_level ||
+																							"beginner"
 																					) + "20",
 																			},
 																		]}
 																	>
-																		<Text
+																		<Ionicons
+																			name={getLessonTypeIcon(
+																				lesson.lesson_type || "vocabulary"
+																			)}
+																			size={20}
+																			color={getDifficultyColor(
+																				lesson.difficulty_level || "beginner"
+																			)}
+																		/>
+																	</View>
+																	<Text style={styles.lessonNumber}>
+																		{lessonIndex + 1}
+																	</Text>
+																</View>
+																{/* Center - Content */}
+																<View style={styles.lessonCenterSection}>
+																	<Text style={styles.lessonTitle}>
+																		{lesson.title || "Untitled Lesson"}
+																	</Text>
+																	<Text
+																		style={styles.lessonDescription}
+																		numberOfLines={2}
+																	>
+																		{lesson.content?.introduction ||
+																			lesson.content?.sections?.[0]?.title ||
+																			"Start this lesson to learn new concepts"}
+																	</Text>
+																	<View style={styles.lessonMetaRow}>
+																		<View style={styles.lessonMetaItem}>
+																			<Ionicons
+																				name="time-outline"
+																				size={14}
+																				color="#666"
+																			/>
+																			<Text style={styles.lessonMetaText}>
+																				{lesson.estimated_duration || 15} min
+																			</Text>
+																		</View>
+																		<View
 																			style={[
-																				styles.difficultyText,
+																				styles.difficultyTag,
 																				{
-																					color: getDifficultyColor(
-																						lesson.difficulty_level
-																					),
+																					backgroundColor:
+																						getDifficultyColor(
+																							lesson.difficulty_level ||
+																								"beginner"
+																						) + "20",
 																				},
 																			]}
 																		>
-																			{lesson.difficulty_level}
-																		</Text>
+																			<Text
+																				style={[
+																					styles.difficultyText,
+																					{
+																						color: getDifficultyColor(
+																							lesson.difficulty_level ||
+																								"beginner"
+																						),
+																					},
+																				]}
+																			>
+																				{lesson.difficulty_level || "beginner"}
+																			</Text>
+																		</View>
 																	</View>
 																</View>
+																{/* Right side - Progress */}
+																<View style={styles.lessonRightSection}>
+																	{renderProgress(progress)}
+																	<Ionicons
+																		name="chevron-forward"
+																		size={20}
+																		color="#ccc"
+																	/>{" "}
+																</View>
 															</View>
-
-															{/* Right side - Progress */}
-															<View style={styles.lessonRightSection}>
-																{renderProgress(progress)}
-																<Ionicons
-																	name="chevron-forward"
-																	size={20}
-																	color="#ccc"
-																/>
-															</View>
-														</View>
-													</TouchableOpacity>
-												);
-											})}
+														</TouchableOpacity>
+													);
+												})
+												.filter(Boolean)}
 										</View>
 									) : (
 										<View style={styles.noLessonsContainer}>

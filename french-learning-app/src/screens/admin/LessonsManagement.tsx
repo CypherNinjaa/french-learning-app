@@ -256,7 +256,6 @@ export const LessonsManagement = () => {
 			setFormLoading(false);
 		}
 	};
-
 	const handleDelete = (lesson: Lesson) => {
 		Alert.alert(
 			"Delete Lesson",
@@ -268,10 +267,22 @@ export const LessonsManagement = () => {
 					style: "destructive",
 					onPress: async () => {
 						try {
-							// Note: We should implement deleteLesson in the service
-							Alert.alert("Info", "Delete functionality will be implemented");
+							setLoading(true);
+							const result = await ContentManagementService.deleteLesson(
+								lesson.id
+							);
+							if (result.success) {
+								Alert.alert("Success", "Lesson deleted successfully");
+								// Refresh the lessons list
+								loadData();
+							} else {
+								Alert.alert("Error", result.error || "Failed to delete lesson");
+							}
 						} catch (error) {
+							console.error("Delete lesson error:", error);
 							Alert.alert("Error", "Failed to delete lesson");
+						} finally {
+							setLoading(false);
 						}
 					},
 				},
