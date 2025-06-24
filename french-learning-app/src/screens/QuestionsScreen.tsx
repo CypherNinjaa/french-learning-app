@@ -13,9 +13,10 @@ import {
 	TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Picker } from "@react-native-picker/picker";
 import { ContentManagementService } from "../services/contentManagementService";
 import { theme } from "../constants/theme";
-import { Question } from "../types";
+import { Question, Module, Lesson, Level } from "../types";
 
 interface QuestionsScreenProps {
 	navigation?: any;
@@ -27,6 +28,14 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [questions, setQuestions] = useState<Question[]>([]);
+	const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
+	const [modules, setModules] = useState<Module[]>([]);
+	const [lessons, setLessons] = useState<Lesson[]>([]);
+	const [levels, setLevels] = useState<Level[]>([]);
+	const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
+	const [selectedModule, setSelectedModule] = useState<number | null>(null);
+	const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
+	const [showFilters, setShowFilters] = useState(false);
 	const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
 		null
 	);
@@ -34,14 +43,42 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 	const [showResults, setShowResults] = useState<{ [key: number]: boolean }>(
 		{}
 	);
-
 	const loadQuestions = async () => {
 		try {
-			const result = await ContentManagementService.getQuestions();
-			if (result.success && result.data) {
-				setQuestions(result.data);
+			// Load questions and related data in parallel
+			const [questionsResult, modulesResult, lessonsResult, levelsResult] =
+				await Promise.all([
+					ContentManagementService.getQuestions(),
+					ContentManagementService.getModules(),
+					ContentManagementService.getLessons(),
+					ContentManagementService.getLevels(),
+				]);
+
+			if (questionsResult.success && questionsResult.data) {
+				console.log("✅ Questions loaded:", questionsResult.data.length);
+				setQuestions(questionsResult.data);
+				setFilteredQuestions(questionsResult.data);
 			} else {
-				Alert.alert("Error", result.error || "Failed to load questions");
+				console.error("❌ Failed to load questions:", questionsResult.error);
+				Alert.alert(
+					"Error",
+					questionsResult.error || "Failed to load questions"
+				);
+			}
+
+			if (modulesResult.success && modulesResult.data) {
+				console.log("✅ Modules loaded:", modulesResult.data.length);
+				setModules(modulesResult.data);
+			}
+
+			if (lessonsResult.success && lessonsResult.data) {
+				console.log("✅ Lessons loaded:", lessonsResult.data.length);
+				setLessons(lessonsResult.data);
+			}
+
+			if (levelsResult.success && levelsResult.data) {
+				console.log("✅ Levels loaded:", levelsResult.data.length);
+				setLevels(levelsResult.data);
 			}
 		} catch (error) {
 			console.error("Error loading questions:", error);
@@ -50,16 +87,66 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 			setLoading(false);
 		}
 	};
-
 	const onRefresh = async () => {
 		setRefreshing(true);
 		await loadQuestions();
 		setRefreshing(false);
 	};
-
 	useEffect(() => {
 		loadQuestions();
 	}, []);
+
+	// Filter questions based on selected filters
+	useEffect(() => {
+		let filtered = [...questions];
+
+		if (selectedLesson) {
+			filtered = filtered.filter((q) => q.lesson_id === selectedLesson);
+		} else if (selectedModule) {
+			// If no specific lesson selected but module is selected, filter by module
+			const moduleLessons = lessons.filter(
+				(l) => l.module_id === selectedModule
+			);
+			const moduleLessonIds = moduleLessons.map((l) => l.id);
+			filtered = filtered.filter((q) => moduleLessonIds.includes(q.lesson_id));
+		} else if (selectedLevel) {
+			// If no module selected but level is selected, filter by level
+			const levelModules = modules.filter((m) => m.level_id === selectedLevel);
+			const levelModuleIds = levelModules.map((m) => m.id);
+			const levelLessons = lessons.filter((l) =>
+				levelModuleIds.includes(l.module_id)
+			);
+			const levelLessonIds = levelLessons.map((l) => l.id);
+			filtered = filtered.filter((q) => levelLessonIds.includes(q.lesson_id));
+		}
+
+		setFilteredQuestions(filtered);
+	}, [
+		questions,
+		selectedLevel,
+		selectedModule,
+		selectedLesson,
+		modules,
+		lessons,
+	]);
+
+	const getFilteredModules = () => {
+		return selectedLevel
+			? modules.filter((module) => module.level_id === selectedLevel)
+			: modules;
+	};
+
+	const getFilteredLessons = () => {
+		return selectedModule
+			? lessons.filter((lesson) => lesson.module_id === selectedModule)
+			: lessons;
+	};
+
+	const resetFilters = () => {
+		setSelectedLevel(null);
+		setSelectedModule(null);
+		setSelectedLesson(null);
+	};
 	const handleAnswerSelection = (questionId: number, answer: string) => {
 		setUserAnswers((prev) => ({
 			...prev,
@@ -465,7 +552,7 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 				<View style={styles.matchingContainer}>
 					<Text style={styles.matchingInstructions}>
 						Match the items on the left with the correct answers on the right:
-					</Text>{" "}
+					</Text>
 					{pairs.map((pair: any, index: number) => (
 						<View key={index} style={styles.matchingPair}>
 							<Text style={styles.matchingItem}>{pair.item}</Text>
@@ -731,20 +818,122 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 
 	return (
 		<SafeAreaView style={styles.container}>
+			{" "}
 			{/* Header */}
 			<View style={styles.header}>
 				<Text style={styles.headerTitle}>Questions Practice</Text>
-				<TouchableOpacity onPress={onRefresh} disabled={refreshing}>
-					<Ionicons
-						name="refresh"
-						size={24}
-						color={
-							refreshing ? theme.colors.textSecondary : theme.colors.primary
-						}
-					/>
-				</TouchableOpacity>
+				<View style={styles.headerActions}>
+					<TouchableOpacity
+						onPress={() => setShowFilters(!showFilters)}
+						style={styles.filterToggleButton}
+					>
+						<Ionicons name="filter" size={24} color={theme.colors.primary} />
+					</TouchableOpacity>
+					<TouchableOpacity onPress={onRefresh} disabled={refreshing}>
+						<Ionicons
+							name="refresh"
+							size={24}
+							color={
+								refreshing ? theme.colors.textSecondary : theme.colors.primary
+							}
+						/>
+					</TouchableOpacity>
+				</View>
 			</View>
+			{/* Filters */}
+			{showFilters && (
+				<View style={styles.filtersContainer}>
+					<View style={styles.filtersHeader}>
+						<Text style={styles.filtersTitle}>Filter Questions</Text>
+						<TouchableOpacity
+							onPress={resetFilters}
+							style={styles.clearFiltersButton}
+						>
+							<Text style={styles.clearFiltersText}>Clear All</Text>
+						</TouchableOpacity>
+					</View>
 
+					<View style={styles.filterRow}>
+						<View style={styles.filterItem}>
+							<Text style={styles.filterLabel}>Level:</Text>
+							<View style={styles.pickerContainer}>
+								<Picker
+									selectedValue={selectedLevel?.toString() || ""}
+									onValueChange={(value: string) => {
+										setSelectedLevel(value ? Number(value) : null);
+										setSelectedModule(null); // Reset module when level changes
+										setSelectedLesson(null); // Reset lesson when level changes
+									}}
+									style={styles.picker}
+								>
+									<Picker.Item label="All Levels" value="" />
+									{levels.map((level) => (
+										<Picker.Item
+											key={level.id}
+											label={level.name}
+											value={level.id.toString()}
+										/>
+									))}
+								</Picker>
+							</View>
+						</View>
+
+						<View style={styles.filterItem}>
+							<Text style={styles.filterLabel}>Module:</Text>
+							<View style={styles.pickerContainer}>
+								<Picker
+									selectedValue={selectedModule?.toString() || ""}
+									onValueChange={(value: string) => {
+										setSelectedModule(value ? Number(value) : null);
+										setSelectedLesson(null); // Reset lesson when module changes
+									}}
+									style={styles.picker}
+								>
+									<Picker.Item label="All Modules" value="" />
+									{getFilteredModules().map((module) => (
+										<Picker.Item
+											key={module.id}
+											label={module.title}
+											value={module.id.toString()}
+										/>
+									))}
+								</Picker>
+							</View>
+						</View>
+					</View>
+
+					<View style={styles.filterRow}>
+						<View style={styles.filterItem}>
+							<Text style={styles.filterLabel}>Lesson:</Text>
+							<View style={styles.pickerContainer}>
+								<Picker
+									selectedValue={selectedLesson?.toString() || ""}
+									onValueChange={(value: string) =>
+										setSelectedLesson(value ? Number(value) : null)
+									}
+									style={styles.picker}
+								>
+									<Picker.Item label="All Lessons" value="" />
+									{getFilteredLessons().map((lesson) => (
+										<Picker.Item
+											key={lesson.id}
+											label={lesson.title}
+											value={lesson.id.toString()}
+										/>
+									))}
+								</Picker>
+							</View>
+						</View>
+
+						<View style={styles.filterStats}>
+							<Text style={styles.filterStatsText}>
+								Showing {filteredQuestions.length} of {questions.length}{" "}
+								questions
+							</Text>
+						</View>
+					</View>
+				</View>
+			)}
 			{/* Content */}
 			<ScrollView
 				style={styles.content}
@@ -753,27 +942,34 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 				}
 				showsVerticalScrollIndicator={false}
 			>
-				{questions.length === 0 ? (
+				{" "}
+				{filteredQuestions.length === 0 ? (
 					<View style={styles.emptyContainer}>
 						<Ionicons
 							name="help-circle-outline"
 							size={64}
 							color={theme.colors.textSecondary}
 						/>
-						<Text style={styles.emptyText}>No questions available</Text>
+						<Text style={styles.emptyText}>
+							{questions.length === 0
+								? "No questions available"
+								: "No questions match your filters"}
+						</Text>
 						<Text style={styles.emptySubtext}>
-							Questions will appear here once they are added by your instructor.
+							{questions.length === 0
+								? "Questions will appear here once they are added by your instructor."
+								: "Try adjusting your filters to see more questions."}
 						</Text>
 					</View>
 				) : (
 					<View style={styles.questionsContainer}>
 						<Text style={styles.sectionTitle}>
-							Practice Questions ({questions.length})
+							Practice Questions ({filteredQuestions.length})
 						</Text>
 						<Text style={styles.sectionSubtitle}>
 							Test your French knowledge with these interactive questions
-						</Text>{" "}
-						{questions.map((question) => (
+						</Text>
+						{filteredQuestions.map((question) => (
 							<View key={question.id}>
 								{(() => {
 									switch (question.question_type) {
@@ -1170,5 +1366,78 @@ const styles = StyleSheet.create({
 	},
 	pronunciationResult: {
 		marginTop: theme.spacing.md,
+	},
+	// Filter styles
+	headerActions: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: theme.spacing.md,
+	},
+	filterToggleButton: {
+		padding: theme.spacing.xs,
+	},
+	filtersContainer: {
+		backgroundColor: theme.colors.surface,
+		borderBottomWidth: 1,
+		borderBottomColor: theme.colors.border,
+		padding: theme.spacing.lg,
+	},
+	filtersHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: theme.spacing.md,
+	},
+	filtersTitle: {
+		fontSize: 16,
+		fontWeight: "600",
+		color: theme.colors.text,
+	},
+	clearFiltersButton: {
+		paddingHorizontal: theme.spacing.md,
+		paddingVertical: theme.spacing.xs,
+		backgroundColor: theme.colors.primary + "20",
+		borderRadius: theme.borderRadius.small,
+	},
+	clearFiltersText: {
+		fontSize: 12,
+		color: theme.colors.primary,
+		fontWeight: "600",
+	},
+	filterRow: {
+		flexDirection: "row",
+		gap: theme.spacing.md,
+		marginBottom: theme.spacing.md,
+		alignItems: "flex-end",
+	},
+	filterItem: {
+		flex: 1,
+	},
+	filterLabel: {
+		fontSize: 12,
+		fontWeight: "600",
+		color: theme.colors.text,
+		marginBottom: theme.spacing.xs,
+	},
+	pickerContainer: {
+		backgroundColor: theme.colors.background,
+		borderRadius: theme.borderRadius.small,
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+		minHeight: 40,
+	},
+	picker: {
+		height: 40,
+		paddingHorizontal: theme.spacing.sm,
+	},
+	filterStats: {
+		flex: 1,
+		alignItems: "flex-end",
+		justifyContent: "flex-end",
+	},
+	filterStatsText: {
+		fontSize: 12,
+		color: theme.colors.textSecondary,
+		fontStyle: "italic",
 	},
 });
