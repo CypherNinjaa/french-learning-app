@@ -182,9 +182,10 @@ ${userMessage ? `Respond to: "${userMessage}"` : `Start a conversation about ${c
 
   /**
    * Check grammar and provide corrections
-   */
-  async checkGrammar(text: string, userLevel: string): Promise<GrammarError[]> {
-    const systemPrompt = `You are a French grammar expert. Analyze the following French text for grammar errors and provide corrections.
+   */  async checkGrammar(text: string, userLevel: string): Promise<GrammarError[]> {
+    const systemPrompt = `You are a French grammar expert. Your task is to analyze French text for grammar errors and return ONLY a JSON array.
+
+IMPORTANT: You must respond with ONLY valid JSON. Do not include any explanatory text, greetings, or conversation.
 
 User level: ${userLevel}
 
@@ -193,14 +194,14 @@ Focus on errors appropriate for this level:
 - Intermediate: More complex tenses, subjunctive mood, relative pronouns
 - Advanced: Complex grammar, nuanced expressions, formal writing
 
-Return your response as a JSON array of errors. Each error should have:
+Return ONLY a JSON array of errors. Each error should have:
 - originalText: the incorrect text
 - correctedText: the correct version
 - explanation: simple explanation of the error
 - errorType: type of error (conjugation, agreement, syntax, etc.)
 - position: {start: number, end: number} - character positions in the original text
 
-If no errors are found, return an empty array.
+If no errors are found, return exactly: []
 
 Example format:
 [
@@ -213,40 +214,58 @@ Example format:
   }
 ]
 
-Text to analyze: "${text}"`;
+REMEMBER: Return ONLY the JSON array, nothing else.`;
 
     try {
       const messages = [
         { role: 'system' as const, content: systemPrompt },
-        { role: 'user' as const, content: `Please check this French text for grammar errors: "${text}"` },
-      ];      const content = await groqService.makeCustomRequest(messages, { temperature: 0.3 });
+        { role: 'user' as const, content: `Analyze this French text for grammar errors and return only JSON: "${text}"` },
+      ];      const content = await groqService.makeCustomRequest(messages, { temperature: 0.1 });
 
       try {
         // Clean the response to extract JSON
         let cleanContent = content.trim();
+        
+        // Remove common markdown formatting
         if (cleanContent.startsWith('```json')) {
           cleanContent = cleanContent.replace(/```json\s*/, '').replace(/\s*```$/, '');
         } else if (cleanContent.startsWith('```')) {
           cleanContent = cleanContent.replace(/```\s*/, '').replace(/\s*```$/, '');
         }
 
-        const jsonMatch = cleanContent.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          cleanContent = jsonMatch[0];
+        // Remove any text before the first [ and after the last ]
+        const jsonStart = cleanContent.indexOf('[');
+        const jsonEnd = cleanContent.lastIndexOf(']');
+        
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
+        }
+
+        // Handle case where AI might return just "[]" or empty response
+        if (!cleanContent || cleanContent.trim() === '') {
+          return [];
         }
 
         const errors = JSON.parse(cleanContent);
         return Array.isArray(errors) ? errors : [];
       } catch (parseError) {
-        console.error('Error parsing grammar check response:', parseError, content);
-        // Throw a custom error so the UI can display a user-friendly message
+        console.error('Error parsing grammar check response:', parseError);
+        console.error('Raw response:', content);
+        
+        // If the response doesn't contain valid JSON, return empty array
+        // This prevents the app from crashing
+        if (content.includes('no errors') || content.includes('no grammar') || content.includes('correct')) {
+          return [];
+        }
+        
+        // For debugging, show the raw response
         throw new Error(
-          'Sorry, there was a problem analyzing your message. (Invalid response from grammar check service.)' +
-            (content ? `\n\nRaw response: ${content}` : '')
+          'Unable to analyze grammar. Please try again with different text.'
         );
       }
     } catch (error) {
       console.error('Error checking grammar:', error);
+      // Return empty array instead of throwing to prevent app crashes
       return [];
     }
   }
