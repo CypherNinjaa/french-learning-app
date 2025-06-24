@@ -305,18 +305,21 @@ export const ModulesManagement = () => {
 						{module.difficulty_level}
 					</Text>
 				</View>
-			</View>			{module.learning_objectives && Array.isArray(module.learning_objectives) && module.learning_objectives.length > 0 && (
-				<View style={styles.objectivesContainer}>
-					<Text style={styles.objectivesTitle}>Learning Objectives:</Text>
-					{module.learning_objectives.map(
-						(objective: string, index: number) => (
-							<Text key={index} style={styles.objective}>
-								• {objective}
-							</Text>
-						)
-					)}
-				</View>
-			)}
+			</View>{" "}
+			{module.learning_objectives &&
+				Array.isArray(module.learning_objectives) &&
+				module.learning_objectives.length > 0 && (
+					<View style={styles.objectivesContainer}>
+						<Text style={styles.objectivesTitle}>Learning Objectives:</Text>
+						{module.learning_objectives.map(
+							(objective: string, index: number) => (
+								<Text key={index} style={styles.objective}>
+									• {objective}
+								</Text>
+							)
+						)}
+					</View>
+				)}
 		</View>
 	);
 

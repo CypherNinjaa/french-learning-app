@@ -583,15 +583,22 @@ CREATE TABLE pronunciation_words (
     id SERIAL PRIMARY KEY,
     french_word TEXT NOT NULL,
     english_translation TEXT NOT NULL,
-    pronunciation TEXT, -- IPA or phonetic
-    audio_url TEXT,
-    difficulty_level TEXT DEFAULT 'beginner',
-    category TEXT,
-    example_sentence TEXT,
+    pronunciation TEXT, -- IPA or phonetic notation
+    audio_url TEXT, -- URL to pronunciation audio
+    example_sentence_fr TEXT,
+    example_sentence_en TEXT,
+    difficulty_level TEXT DEFAULT 'beginner' CHECK (difficulty_level IN ('beginner', 'intermediate', 'advanced')),
+    category TEXT, -- e.g., 'food', 'travel', 'business'
     pronunciation_tips TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    updated_at TIMESTAMP DEFAULT NOW(),
+    
+    -- Add compatibility columns that the frontend expects
+    french TEXT GENERATED ALWAYS AS (french_word) STORED,
+    english TEXT GENERATED ALWAYS AS (english_translation) STORED,
+    example_sentence TEXT GENERATED ALWAYS AS (example_sentence_fr) STORED,
+    example TEXT GENERATED ALWAYS AS (example_sentence_fr) STORED
 );
 
 -- Learning paths for personalized recommendations
