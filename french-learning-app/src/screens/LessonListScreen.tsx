@@ -9,6 +9,7 @@ import {
 	Alert,
 	RefreshControl,
 	Image,
+	Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,7 +23,6 @@ import {
 import { LessonService } from "../services/lessonService";
 import { useAdaptiveDifficulty } from "../hooks/useProgressTracking";
 import { theme } from "../constants/theme";
-import { LessonReader } from "../components/LessonReader";
 
 interface LessonListScreenProps {
 	route: {
@@ -45,11 +45,11 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 }) => {
 	const { moduleId, moduleName, userId } = route.params;
 	const navigation = useNavigation();
+
 	const [lessons, setLessons] = useState<LessonWithProgress[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
 	// Adaptive difficulty for recommendations
 	const { recommendedDifficulty } = useAdaptiveDifficulty({
@@ -98,19 +98,21 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 		loadLessons();
 	}, []);
 	const handleLessonPress = (lesson: LessonWithProgress) => {
-		console.log("Opening lesson:", lesson.title, "ID:", lesson.id);
-		setSelectedLesson(lesson);
-	};
-
-	const handleLessonComplete = async () => {
-		if (!selectedLesson) return;
-
 		try {
-			// Refresh lessons to update progress
-			await loadLessons();
-			setSelectedLesson(null);
+			// Navigate to lesson screen - no locking, all lessons are clickable
+			console.log("Navigating to lesson:", lesson.id, lesson.title);
+			(navigation as any).navigate("Lesson", {
+				lessonId: lesson.id,
+				lessonTitle: lesson.title,
+				userId: userId,
+			});
 		} catch (error) {
-			console.error("Error completing lesson:", error);
+			console.error("Navigation error:", error);
+			Alert.alert(
+				"Navigation Error",
+				"Unable to open lesson. Please try again.",
+				[{ text: "OK" }]
+			);
 		}
 	};
 
@@ -156,114 +158,110 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 				return "Not Started";
 		}
 	};
+
 	const renderLessonItem = ({
 		item,
 		index,
 	}: {
 		item: LessonWithProgress;
 		index: number;
-	}) => {
-		return (
-			<View style={styles.lessonCard}>
-				<TouchableOpacity
-					onPress={() => handleLessonPress(item)}
-					style={styles.clickableArea}
-					activeOpacity={0.7}
-				>
-					<View style={styles.lessonHeader}>
-						<View style={styles.lessonNumber}>
-							<Text style={styles.lessonNumberText}>{index + 1}</Text>
+	}) => (
+		<TouchableOpacity
+			style={styles.lessonCard}
+			onPress={() => handleLessonPress(item)}
+			activeOpacity={0.7}
+		>
+			<View style={styles.lessonHeader}>
+				<View style={styles.lessonNumber}>
+					<Text style={styles.lessonNumberText}>{index + 1}</Text>
+				</View>
+				<View style={styles.lessonInfo}>
+					<Text style={[styles.lessonTitle]}>{item.title}</Text>
+
+					<View style={styles.lessonMeta}>
+						<View
+							style={[
+								styles.difficultyBadge,
+								{ backgroundColor: getDifficultyColor(item.difficulty_level) },
+							]}
+						>
+							<Text style={styles.difficultyText}>{item.difficulty_level}</Text>
 						</View>
-						<View style={styles.lessonInfo}>
-							<Text style={styles.lessonTitle}>{item.title}</Text>
-							<View style={styles.lessonMeta}>
-								<View
-									style={[
-										styles.difficultyBadge,
-										{
-											backgroundColor: getDifficultyColor(
-												item.difficulty_level
-											),
-										},
-									]}
-								>
-									<Text style={styles.difficultyText}>
-										{item.difficulty_level}
-									</Text>
-								</View>
-								<Text style={styles.lessonType}>{item.lesson_type}</Text>
-								<Text style={styles.lessonDuration}>
-									{`${item.estimated_duration || 5} min`}
-								</Text>
-							</View>
-						</View>
-						<View style={styles.lessonStatus}>
-							<View style={styles.progressContainer}>
-								<View
-									style={[
-										styles.progressIndicator,
-										{ backgroundColor: getProgressColor(item.userProgress) },
-									]}
-								>
-									{item.userProgress?.status === "completed" && (
-										<Ionicons name="checkmark" size={16} color="#fff" />
-									)}
-									{item.userProgress?.status === "in_progress" && (
-										<View style={styles.progressDot} />
-									)}
-								</View>
-								<Text style={styles.progressText}>
-									{getProgressText(item.userProgress)}
-								</Text>
-								<Ionicons
-									name="chevron-forward"
-									size={16}
-									color="#666"
-									style={styles.chevron}
-								/>
-							</View>
-						</View>{" "}
+
+						<Text style={styles.lessonType}>{item.lesson_type}</Text>
+
+						<Text style={styles.lessonDuration}>
+							{item.estimated_duration || 5}min
+						</Text>
 					</View>
-				</TouchableOpacity>
-
-				{item.userProgress && (
-					<View style={styles.lessonStats}>
-						<View style={styles.stat}>
-							<Ionicons name="star" size={16} color="#FFD700" />
-							<Text style={styles.statText}>{item.userProgress.score}%</Text>
+				</View>
+				<View style={styles.lessonStatus} pointerEvents="box-none">
+					<View style={styles.progressContainer} pointerEvents="box-none">
+						<View
+							style={[
+								styles.progressIndicator,
+								{ backgroundColor: getProgressColor(item.userProgress) },
+							]}
+						>
+							{item.userProgress?.status === "completed" && (
+								<Ionicons name="checkmark" size={16} color="#fff" />
+							)}
+							{item.userProgress?.status === "in_progress" && (
+								<View style={styles.progressDot} />
+							)}
 						</View>
-
-						<View style={styles.stat}>
-							<Ionicons name="time" size={16} color="#666" />
-							<Text style={styles.statText}>
-								{Math.floor(item.userProgress.time_spent / 60)}m
-							</Text>
-						</View>
-
-						<View style={styles.stat}>
-							<Ionicons name="refresh" size={16} color="#666" />
-							<Text style={styles.statText}>{item.userProgress.attempts}x</Text>
-						</View>
+						<Text style={styles.progressText}>
+							{getProgressText(item.userProgress)}
+						</Text>
+						<Ionicons
+							name="chevron-forward"
+							size={16}
+							color="#666"
+							style={styles.chevron}
+						/>
 					</View>
-				)}
-
-				{item.difficulty_level === recommendedDifficulty && (
-					<View style={styles.recommendedBadge}>
-						<Ionicons name="trending-up" size={14} color="#007AFF" />
-						<Text style={styles.recommendedText}>Recommended</Text>
-					</View>
-				)}
+				</View>
 			</View>
-		);
-	};
+
+			{item.userProgress && (
+				<View style={styles.lessonStats}>
+					<View style={styles.stat}>
+						<Ionicons name="star" size={16} color="#FFD700" />
+						<Text style={styles.statText}>{item.userProgress.score}%</Text>
+					</View>
+
+					<View style={styles.stat}>
+						<Ionicons name="time" size={16} color="#666" />
+						<Text style={styles.statText}>
+							{Math.floor(item.userProgress.time_spent / 60)}m
+						</Text>
+					</View>
+
+					<View style={styles.stat}>
+						<Ionicons name="refresh" size={16} color="#666" />
+						<Text style={styles.statText}>{item.userProgress.attempts}x</Text>
+					</View>
+				</View>
+			)}
+
+			{item.difficulty_level === recommendedDifficulty && (
+				<View style={styles.recommendedBadge}>
+					<Ionicons name="trending-up" size={14} color="#007AFF" />
+					<Text style={styles.recommendedText}>Recommended</Text>
+				</View>
+			)}
+		</TouchableOpacity>
+	);
 
 	const renderHeader = () => (
 		<View style={styles.header}>
 			<Text style={styles.moduleTitle}>{moduleName}</Text>
 			<Text style={styles.moduleSubtitle}>
-				{`${lessons.length} lessons, ${
+				{lessons.length} lessons
+				{
 					lessons.filter((l) => l.userProgress?.status === "completed").length
-				} completed`}
+				}{" "}
+				completed
 			</Text>
 			{recommendedDifficulty && (
 				<View style={styles.recommendationContainer}>
@@ -317,20 +315,12 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
-						colors={["#007AFF"]}
-						tintColor="#007AFF"
+						{...(Platform.OS === "android"
+							? { colors: ["#007AFF"] }
+							: { tintColor: "#007AFF" })}
 					/>
 				}
 			/>
-
-			{/* Lesson Reader Modal */}
-			{selectedLesson && (
-				<LessonReader
-					lesson={selectedLesson}
-					onClose={() => setSelectedLesson(null)}
-					onComplete={handleLessonComplete}
-				/>
-			)}
 		</SafeAreaView>
 	);
 };
@@ -557,8 +547,5 @@ const styles = StyleSheet.create({
 	chevron: {
 		marginLeft: 4,
 		marginTop: 2,
-	},
-	clickableArea: {
-		flex: 1,
 	},
 });

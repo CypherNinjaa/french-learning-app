@@ -16,7 +16,11 @@ export interface Lesson {
 }
 
 export interface LessonContent {
+  introduction_title?: string; // Book-style: title for introduction
   introduction?: string;
+  explanation_title?: string; // Book-style: title for explanation
+  explanation?: string; // Book-style: explanation content
+  example?: string; // Book-style: example content
   sections?: LessonSection[];
   summary?: string;
   vocabulary_focus?: number[]; // vocabulary IDs
