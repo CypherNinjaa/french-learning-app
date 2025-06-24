@@ -184,7 +184,6 @@ export const ModulesManagement = () => {
 			setFormLoading(false);
 		}
 	};
-
 	const handleDelete = (module: Module) => {
 		Alert.alert(
 			"Delete Module",
@@ -196,10 +195,22 @@ export const ModulesManagement = () => {
 					style: "destructive",
 					onPress: async () => {
 						try {
-							// Note: We should implement deleteModule in the service
-							Alert.alert("Info", "Delete functionality will be implemented");
+							setLoading(true);
+							const result = await ContentManagementService.deleteModule(
+								module.id
+							);
+							if (result.success) {
+								Alert.alert("Success", "Module deleted successfully");
+								// Refresh the modules list
+								loadData();
+							} else {
+								Alert.alert("Error", result.error || "Failed to delete module");
+							}
 						} catch (error) {
+							console.error("Delete module error:", error);
 							Alert.alert("Error", "Failed to delete module");
+						} finally {
+							setLoading(false);
 						}
 					},
 				},
@@ -294,19 +305,21 @@ export const ModulesManagement = () => {
 						{module.difficulty_level}
 					</Text>
 				</View>
-			</View>
-			{module.learning_objectives && module.learning_objectives.length > 0 && (
-				<View style={styles.objectivesContainer}>
-					<Text style={styles.objectivesTitle}>Learning Objectives:</Text>
-					{module.learning_objectives.map(
-						(objective: string, index: number) => (
-							<Text key={index} style={styles.objective}>
-								• {objective}
-							</Text>
-						)
-					)}
-				</View>
-			)}
+			</View>{" "}
+			{module.learning_objectives &&
+				Array.isArray(module.learning_objectives) &&
+				module.learning_objectives.length > 0 && (
+					<View style={styles.objectivesContainer}>
+						<Text style={styles.objectivesTitle}>Learning Objectives:</Text>
+						{module.learning_objectives.map(
+							(objective: string, index: number) => (
+								<Text key={index} style={styles.objective}>
+									• {objective}
+								</Text>
+							)
+						)}
+					</View>
+				)}
 		</View>
 	);
 
