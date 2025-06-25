@@ -1,5 +1,5 @@
 // Simple test script to validate Groq API key
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = "";
 
 async function testGroqAPI() {
 	try {
