@@ -356,7 +356,7 @@ export const ProgressScreen: React.FC<ProgressScreenProps> = ({
 						/>
 					)}
 				</TouchableOpacity>
-			</View>{" "}
+			</View>
 			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 				{/* Overview Stats */}
 				<View style={styles.section}>
