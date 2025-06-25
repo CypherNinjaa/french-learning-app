@@ -179,75 +179,163 @@ ${userMessage ? `Respond to: "${userMessage}"` : `Start a conversation about ${c
       return 'Désolé, j\'ai un petit problème technique. Pouvez-vous répéter?';
     }
   }
-
   /**
    * Check grammar and provide corrections
-   */
-  async checkGrammar(text: string, userLevel: string): Promise<GrammarError[]> {
-    const systemPrompt = `You are a French grammar expert. Analyze the following French text for grammar errors and provide corrections.
+   */  async checkGrammar(text: string, userLevel: string): Promise<GrammarError[]> {
+    // Check if the text is empty or too short
+    if (!text || text.trim().length < 2) {
+      return [];
+    }
+
+    // Always provide some form of feedback, even for non-French text
+    const systemPrompt = `You are a helpful French language teacher. Your job is to analyze text and provide constructive feedback.
 
 User level: ${userLevel}
 
-Focus on errors appropriate for this level:
-- Beginner: Basic verb conjugation, gender agreement, simple sentence structure
-- Intermediate: More complex tenses, subjunctive mood, relative pronouns
-- Advanced: Complex grammar, nuanced expressions, formal writing
+If the text is in French:
+- Check for grammar errors appropriate for ${userLevel} level
+- Focus on: verb conjugation, gender agreement, sentence structure, vocabulary usage
+- Return corrections as JSON array
 
-Return your response as a JSON array of errors. Each error should have:
-- originalText: the incorrect text
-- correctedText: the correct version
-- explanation: simple explanation of the error
-- errorType: type of error (conjugation, agreement, syntax, etc.)
-- position: {start: number, end: number} - character positions in the original text
+If the text is not in French (English, etc.):
+- Provide a helpful suggestion about writing in French
+- Return as a single grammar error suggesting French usage
 
-If no errors are found, return an empty array.
+IMPORTANT: Always return a valid JSON array. Even if there are no errors, provide encouraging feedback.
 
-Example format:
+JSON format:
 [
   {
-    "originalText": "je suis allé",
-    "correctedText": "je suis allée",
-    "explanation": "Agreement with feminine subject",
-    "errorType": "agreement",
-    "position": {"start": 8, "end": 12}
+    "originalText": "text that needs correction",
+    "correctedText": "corrected version or suggestion",
+    "explanation": "explanation in French",
+    "errorType": "type of error or suggestion",
+    "position": {"start": 0, "end": text_length}
   }
 ]
 
-Text to analyze: "${text}"`;
+If the text is perfect French, return:
+[
+  {
+    "originalText": "${text}",
+    "correctedText": "${text}",
+    "explanation": "Très bien ! Votre français est correct.",
+    "errorType": "encouragement",
+    "position": {"start": 0, "end": ${text.length}}
+  }
+]
+
+Always provide helpful, encouraging feedback.`;
 
     try {
       const messages = [
         { role: 'system' as const, content: systemPrompt },
-        { role: 'user' as const, content: `Please check this French text for grammar errors: "${text}"` },
-      ];      const content = await groqService.makeCustomRequest(messages, { temperature: 0.3 });
+        { role: 'user' as const, content: `Analyze this text: "${text}"` },
+      ];
+
+      const content = await groqService.makeCustomRequest(messages, { temperature: 0.3 });
 
       try {
         // Clean the response to extract JSON
         let cleanContent = content.trim();
+        
+        // Remove markdown code blocks if present
         if (cleanContent.startsWith('```json')) {
           cleanContent = cleanContent.replace(/```json\s*/, '').replace(/\s*```$/, '');
         } else if (cleanContent.startsWith('```')) {
           cleanContent = cleanContent.replace(/```\s*/, '').replace(/\s*```$/, '');
         }
 
-        const jsonMatch = cleanContent.match(/\[[\s\S]*\]/);
+        // Try to find JSON array in the response
+        const jsonMatch = cleanContent.match(/\[[\s\S]*?\]/);
         if (jsonMatch) {
           cleanContent = jsonMatch[0];
         }
 
+        // If the response doesn't look like JSON, create a helpful feedback based on the response
+        if (!cleanContent.startsWith('[')) {
+          console.log('Grammar check response is not JSON format, creating helpful feedback from text response');
+          
+          // Detect if it's likely English or non-French
+          const commonEnglishWords = ['hello', 'hi', 'how', 'are', 'you', 'what', 'the', 'and', 'or', 'but', 'yes', 'no', 'thank', 'please'];
+          const isLikelyEnglish = commonEnglishWords.some(word => 
+            text.toLowerCase().includes(word.toLowerCase())
+          );
+
+          if (isLikelyEnglish) {
+            return [{
+              originalText: text,
+              correctedText: "Bonjour ! Essayez d'écrire en français.",
+              explanation: "Écrivez en français pour pratiquer et recevoir des corrections grammaticales utiles.",
+              errorType: "language_suggestion",
+              position: { start: 0, end: text.length }
+            }];
+          }
+
+          // For French text, create encouraging feedback from the AI response
+          return [{
+            originalText: text,
+            correctedText: text,
+            explanation: content.length > 200 ? content.substring(0, 200) + "..." : content,
+            errorType: "ai_feedback",
+            position: { start: 0, end: text.length }
+          }];
+        }
+
         const errors = JSON.parse(cleanContent);
-        return Array.isArray(errors) ? errors : [];
+        if (Array.isArray(errors) && errors.length > 0) {
+          return errors;
+        }
+
+        // If empty array or no errors found, provide encouraging feedback
+        return [{
+          originalText: text,
+          correctedText: text,
+          explanation: "Très bien ! Votre français est correct. Continuez comme ça !",
+          errorType: "encouragement",
+          position: { start: 0, end: text.length }
+        }];
+
       } catch (parseError) {
-        console.error('Error parsing grammar check response:', parseError, content);
-        // Throw a custom error so the UI can display a user-friendly message
-        throw new Error(
-          'Sorry, there was a problem analyzing your message. (Invalid response from grammar check service.)' +
-            (content ? `\n\nRaw response: ${content}` : '')
+        console.error('Error parsing grammar check response:', parseError);
+        console.log('Raw response content:', content);
+        
+        // Always provide some form of helpful feedback, even when parsing fails
+        const commonEnglishWords = ['hello', 'hi', 'how', 'are', 'you', 'what', 'the', 'and', 'or', 'but'];
+        const isLikelyEnglish = commonEnglishWords.some(word => 
+          text.toLowerCase().includes(word.toLowerCase())
         );
+
+        if (isLikelyEnglish) {
+          return [{
+            originalText: text,
+            correctedText: "Bonjour ! Comment allez-vous ?",
+            explanation: "Essayez d'écrire en français pour pratiquer la langue. Par exemple : 'Bonjour' au lieu de 'Hello'.",
+            errorType: "language_help",
+            position: { start: 0, end: text.length }
+          }];
+        }
+
+        // For French text, provide general encouragement
+        return [{
+          originalText: text,
+          correctedText: text,
+          explanation: "Merci d'écrire en français ! Continuez à pratiquer pour améliorer votre niveau.",
+          errorType: "practice_encouragement",
+          position: { start: 0, end: text.length }
+        }];
       }
     } catch (error) {
       console.error('Error checking grammar:', error);
-      return [];
+      
+      // Always provide fallback feedback, never return empty
+      return [{
+        originalText: text,
+        correctedText: text,
+        explanation: "Continuez à pratiquer votre français ! Chaque message vous aide à progresser.",
+        errorType: "system_encouragement",
+        position: { start: 0, end: text.length }
+      }];
     }
   }
 
