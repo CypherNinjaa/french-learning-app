@@ -251,57 +251,27 @@ export const ConversationalAIScreen: React.FC<ConversationalAIScreenProps> = ({
 					})}
 				</Text>
 			</View>
+
 			{message.isUser &&
 				message.grammarErrors &&
 				message.grammarErrors.length > 0 && (
-					<View style={styles.grammarFeedbackContainer}>
-						<View style={styles.grammarHeader}>
-							<Ionicons name="warning" size={16} color={theme.colors.warning} />
-							<Text style={styles.grammarHeaderText}>
-								{`Grammar Feedback (${message.grammarErrors.length} ${
-									message.grammarErrors.length === 1 ? "issue" : "issues"
-								})`}
-							</Text>
-						</View>
-						{message.grammarErrors.map((error, index) => (
-							<View key={index} style={styles.grammarErrorItem}>
-								<View style={styles.grammarErrorHeader}>
-									<Text style={styles.grammarErrorType}>
-										{`${
-											error.errorType.charAt(0).toUpperCase() +
-											error.errorType.slice(1)
-										} Error`}
-									</Text>
-								</View>
-								<View style={styles.grammarErrorContent}>
-									<Text style={styles.grammarErrorLabel}>Original:</Text>
-									<Text style={styles.grammarErrorOriginal}>
-										"{error.originalText}"
-									</Text>
-								</View>
-								<View style={styles.grammarErrorContent}>
-									<Text style={styles.grammarErrorLabel}>Correction:</Text>
-									<Text style={styles.grammarErrorCorrected}>
-										"{error.correctedText}"
-									</Text>
-								</View>
-								{error.explanation && (
-									<View style={styles.grammarErrorContent}>
-										<Text style={styles.grammarErrorLabel}>Explanation:</Text>
-										<Text style={styles.grammarErrorExplanation}>
-											{error.explanation}
-										</Text>
-									</View>
-								)}
-							</View>
-						))}
-					</View>
+					<TouchableOpacity
+						style={styles.grammarIndicator}
+						onPress={() => handleShowGrammarDetails(message)}
+					>
+						<Ionicons name="warning" size={16} color={theme.colors.warning} />
+						<Text style={styles.grammarIndicatorText}>
+							{message.grammarErrors.length} grammar
+							{message.grammarErrors.length === 1 ? "issue" : "issues"}
+						</Text>
+					</TouchableOpacity>
 				)}
+
 			{message.isUser &&
 				message.correctedVersion &&
 				message.correctedVersion !== message.content && (
 					<View style={styles.correctionContainer}>
-						<Text style={styles.correctionLabel}>✅ Complete correction:</Text>
+						<Text style={styles.correctionLabel}>Suggested correction:</Text>
 						<Text style={styles.correctionText}>
 							{message.correctedVersion}
 						</Text>
@@ -876,63 +846,23 @@ const styles = StyleSheet.create({
 		color: theme.colors.warning,
 		textTransform: "capitalize",
 	},
-	correctText: {
-		color: theme.colors.success,
-		fontWeight: "500",
-	},
-	// New grammar feedback styles
-	grammarFeedbackContainer: {
-		backgroundColor: "#FFF9F0", // Light orange background
-		borderRadius: theme.borderRadius.small,
-		padding: theme.spacing.sm,
-		marginTop: theme.spacing.xs,
-		borderLeftWidth: 3,
-		borderLeftColor: theme.colors.warning,
-	},
-	grammarHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		marginBottom: theme.spacing.sm,
-		gap: theme.spacing.xs,
-	},
-	grammarHeaderText: {
+	grammarErrorOriginal: {
 		fontSize: 12,
-		fontWeight: "600",
-		color: theme.colors.warning,
-	},
-	grammarErrorItem: {
-		backgroundColor: theme.colors.surface,
-		borderRadius: theme.borderRadius.small,
-		padding: theme.spacing.sm,
-		marginBottom: theme.spacing.xs,
-		borderWidth: 1,
-		borderColor: theme.colors.border,
-	},
-	grammarErrorContent: {
-		marginBottom: theme.spacing.xs,
-	},
-	grammarErrorLabel: {
-		fontSize: 11,
-		fontWeight: "600",
 		color: theme.colors.textSecondary,
 		marginBottom: 2,
 	},
-	grammarErrorOriginal: {
-		fontSize: 12,
-		color: "#D32F2F", // Red for original text
-		fontStyle: "italic",
-		marginBottom: theme.spacing.xs,
-	},
 	grammarErrorCorrected: {
 		fontSize: 12,
-		color: "#2E7D32", // Green for corrected text
-		fontWeight: "500",
+		color: theme.colors.textSecondary,
 		marginBottom: theme.spacing.xs,
 	},
 	grammarErrorExplanation: {
-		fontSize: 11,
+		fontSize: 12,
 		color: theme.colors.text,
 		lineHeight: 16,
-		fontStyle: "italic",
+	},
+	correctText: {
+		color: theme.colors.success,
+		fontWeight: "500",
 	},
 });
