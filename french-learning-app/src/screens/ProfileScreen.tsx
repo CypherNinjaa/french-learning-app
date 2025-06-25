@@ -11,6 +11,7 @@ import {
 	ActivityIndicator,
 	Dimensions,
 	Modal,
+	Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -19,6 +20,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { SupabaseService } from "../services/supabaseService";
 import { theme } from "../constants/theme";
 import { User } from "../types";
+import { developerInfo } from "../config/developerInfo";
 
 const { width } = Dimensions.get("window");
 
@@ -84,7 +86,23 @@ export const ProfileScreen = ({ navigation }: any) => {
 			unlocked: false,
 			icon: "💬",
 		},
-	]; // Calculate dynamic learning progress
+	];
+
+	// Helper function to open external links
+	const openLink = async (url: string) => {
+		try {
+			const supported = await Linking.canOpenURL(url);
+			if (supported) {
+				await Linking.openURL(url);
+			} else {
+				Alert.alert("Error", `Cannot open this link: ${url}`);
+			}
+		} catch (error) {
+			Alert.alert("Error", "An error occurred while opening the link");
+		}
+	};
+
+	// Calculate dynamic learning progress
 	const calculateProgress = () => {
 		const totalPoints = user?.points || 0;
 		const streakDays = user?.streakDays || 0;
@@ -960,6 +978,287 @@ export const ProfileScreen = ({ navigation }: any) => {
 					</View>
 				</View>
 			</Modal>
+
+			{/* Developer & Project Information Section */}
+			<View style={styles.developerSection}>
+				<Text style={styles.sectionTitle}>📚 Project Information</Text>
+				{/* University Information */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="school" size={24} color="#667eea" />
+						<Text style={styles.infoTitle}>University</Text>
+					</View>
+					<Text style={styles.infoText}>{developerInfo.university.name}</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.university.subtitle}
+					</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.university.description}
+					</Text>
+				</View>
+				{/* Department Information */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="desktop" size={24} color="#4ECDC4" />
+						<Text style={styles.infoTitle}>Department</Text>
+					</View>
+					<Text style={styles.infoText}>{developerInfo.department.name}</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.department.school}
+					</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.department.description}
+					</Text>
+					{developerInfo.department.hod && (
+						<Text style={styles.infoSubtext}>
+							Head of Department: {developerInfo.department.hod}
+						</Text>
+					)}
+				</View>
+				{/* Project Guide/Teacher Information */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="person-circle" size={24} color="#FF6B35" />
+						<Text style={styles.infoTitle}>Project Guide</Text>
+					</View>
+					<Text style={styles.infoText}>{developerInfo.projectGuide.name}</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.projectGuide.designation}
+					</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.projectGuide.specialization}
+					</Text>
+				</View>
+				{/* Development Team Information */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="people" size={24} color="#9C27B0" />
+						<Text style={styles.infoTitle}>Development Team</Text>
+					</View>
+					{developerInfo.team.map((member, index) => (
+						<View key={index} style={styles.teamMember}>
+							<View style={styles.memberInfo}>
+								<Text style={styles.memberName}>{member.name}</Text>
+								<Text style={styles.memberRole}>{member.role}</Text>
+								<Text style={styles.memberDetails}>{member.details}</Text>
+							</View>
+						</View>
+					))}
+				</View>
+				{/* Project Details */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="rocket" size={24} color="#FF5722" />
+						<Text style={styles.infoTitle}>Project Details</Text>
+					</View>
+					<Text style={styles.infoText}>{developerInfo.project.name}</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.project.description}
+					</Text>
+					<Text style={styles.infoSubtext}>
+						Category: {developerInfo.project.category}
+					</Text>
+					<Text style={styles.infoSubtext}>
+						{developerInfo.project.techStack}
+					</Text>
+
+					{/* Project Timeline */}
+					<View style={styles.timelineContainer}>
+						<View style={styles.timelineItem}>
+							<Ionicons name="calendar-outline" size={16} color="#667eea" />
+							<Text style={styles.timelineText}>
+								Started: {developerInfo.project.startDate}
+							</Text>
+						</View>
+						{developerInfo.project.endDate && (
+							<View style={styles.timelineItem}>
+								<Ionicons
+									name="checkmark-circle-outline"
+									size={16}
+									color="#4CAF50"
+								/>
+								<Text style={styles.timelineText}>
+									Completed: {developerInfo.project.endDate}
+								</Text>
+							</View>
+						)}
+						<View style={styles.statusBadge}>
+							<Text style={styles.statusText}>
+								{developerInfo.project.status}
+							</Text>
+						</View>
+					</View>
+
+					{/* Project Statistics */}
+					<View style={styles.projectStats}>
+						<View style={styles.statItem}>
+							<Text style={styles.projectStatNumber}>
+								{developerInfo.project.stats.duration}
+							</Text>
+							<Text style={styles.projectStatLabel}>Months</Text>
+						</View>
+						<View style={styles.statItem}>
+							<Text style={styles.projectStatNumber}>
+								{developerInfo.project.stats.linesOfCode}
+							</Text>
+							<Text style={styles.projectStatLabel}>Lines of Code</Text>
+						</View>
+						<View style={styles.statItem}>
+							<Text style={styles.projectStatNumber}>
+								{developerInfo.project.stats.features}
+							</Text>
+							<Text style={styles.projectStatLabel}>Features</Text>
+						</View>
+						{developerInfo.project.stats.commits && (
+							<View style={styles.statItem}>
+								<Text style={styles.projectStatNumber}>
+									{developerInfo.project.stats.commits}
+								</Text>
+								<Text style={styles.projectStatLabel}>Commits</Text>
+							</View>
+						)}
+					</View>
+				</View>
+				{/* Key Features */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="star" size={24} color="#FFD700" />
+						<Text style={styles.infoTitle}>Key Features</Text>
+					</View>
+					{developerInfo.project.features.map((feature, index) => (
+						<View key={index} style={styles.featureItem}>
+							<Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+							<Text style={styles.featureText}>{feature}</Text>
+						</View>
+					))}
+				</View>
+				{/* Project Objectives */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="golf" size={24} color="#E91E63" />
+						<Text style={styles.infoTitle}>Project Objectives</Text>
+					</View>
+					{developerInfo.project.objectives.map((objective, index) => (
+						<View key={index} style={styles.objectiveItem}>
+							<Text style={styles.objectiveNumber}>{index + 1}.</Text>
+							<Text style={styles.objectiveText}>{objective}</Text>
+						</View>
+					))}
+				</View>
+				{/* Contact Information */}
+				<View style={styles.infoCard}>
+					<View style={styles.infoHeader}>
+						<Ionicons name="mail" size={24} color="#34D399" />
+						<Text style={styles.infoTitle}>Contact Information</Text>
+					</View>
+					<TouchableOpacity
+						style={styles.contactItem}
+						onPress={() => openLink(`mailto:${developerInfo.contact.email}`)}
+					>
+						<Ionicons name="mail-outline" size={16} color="#666" />
+						<Text style={styles.contactText}>
+							{developerInfo.contact.email}
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.contactItem}
+						onPress={() => openLink(`https://${developerInfo.contact.github}`)}
+					>
+						<Ionicons name="logo-github" size={16} color="#666" />
+						<Text style={styles.contactText}>
+							{developerInfo.contact.github}
+						</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.contactItem}
+						onPress={() =>
+							openLink(`https://${developerInfo.contact.linkedin}`)
+						}
+					>
+						<Ionicons name="logo-linkedin" size={16} color="#666" />
+						<Text style={styles.contactText}>
+							{developerInfo.contact.linkedin}
+						</Text>
+					</TouchableOpacity>
+				</View>
+				{/* Academic Year */}
+				<View style={styles.academicInfo}>
+					<Text style={styles.academicText}>
+						Academic Year {developerInfo.academic.year} •{" "}
+						{developerInfo.academic.semester}
+					</Text>
+					<Text style={styles.academicText}>
+						Batch: {developerInfo.academic.batch}
+					</Text>
+					<Text style={styles.academicText}>
+						Submitted to {developerInfo.university.name}
+					</Text>
+					{developerInfo.academic.submissionDate && (
+						<Text style={styles.academicText}>
+							Submission: {developerInfo.academic.submissionDate}
+						</Text>
+					)}
+				</View>
+				{/* Acknowledgments */}
+				{developerInfo.acknowledgments && (
+					<View style={styles.infoCard}>
+						<View style={styles.infoHeader}>
+							<Ionicons name="heart" size={24} color="#FF69B4" />
+							<Text style={styles.infoTitle}>Acknowledgments</Text>
+						</View>
+
+						{developerInfo.acknowledgments.specialThanks && (
+							<>
+								<Text style={styles.acknowledgmentSubtitle}>
+									Special Thanks:
+								</Text>
+								{developerInfo.acknowledgments.specialThanks.map(
+									(thanks, index) => (
+										<View key={index} style={styles.acknowledgmentItem}>
+											<Ionicons
+												name="arrow-forward"
+												size={12}
+												color="#FF69B4"
+											/>
+											<Text style={styles.acknowledgmentText}>{thanks}</Text>
+										</View>
+									)
+								)}
+							</>
+						)}
+
+						{developerInfo.acknowledgments.resources && (
+							<>
+								<Text style={styles.acknowledgmentSubtitle}>
+									Resources & Tools:
+								</Text>
+								{developerInfo.acknowledgments.resources.map(
+									(resource, index) => (
+										<View key={index} style={styles.acknowledgmentItem}>
+											<Ionicons
+												name="arrow-forward"
+												size={12}
+												color="#FF69B4"
+											/>
+											<Text style={styles.acknowledgmentText}>{resource}</Text>
+										</View>
+									)
+								)}
+							</>
+						)}
+
+						{developerInfo.acknowledgments.inspiration && (
+							<>
+								<Text style={styles.acknowledgmentSubtitle}>Inspiration:</Text>
+								<Text style={styles.inspirationText}>
+									{developerInfo.acknowledgments.inspiration}
+								</Text>
+							</>
+						)}
+					</View>
+				)}
+			</View>
+
 			<View style={styles.bottomSpacing} />
 		</ScrollView>
 	);
@@ -1415,5 +1714,214 @@ const styles = StyleSheet.create({
 	},
 	bottomSpacing: {
 		height: 40,
+	},
+	// Developer Section Styles
+	developerSection: {
+		marginTop: 24,
+		paddingHorizontal: 16,
+	},
+	infoCard: {
+		backgroundColor: "#ffffff",
+		borderRadius: 16,
+		padding: 16,
+		marginBottom: 16,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.05,
+		shadowRadius: 4,
+		elevation: 2,
+		borderWidth: 1,
+		borderColor: "#f1f3f4",
+	},
+	infoHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 12,
+	},
+	infoTitle: {
+		fontSize: 18,
+		fontWeight: "700",
+		color: "#2d3436",
+		marginLeft: 12,
+	},
+	infoText: {
+		fontSize: 16,
+		fontWeight: "600",
+		color: "#2d3436",
+		marginBottom: 4,
+	},
+	infoSubtext: {
+		fontSize: 14,
+		color: "#666666",
+		marginBottom: 2,
+		lineHeight: 20,
+	},
+	teamMember: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingVertical: 8,
+		borderBottomWidth: 1,
+		borderBottomColor: "#f1f3f4",
+		marginBottom: 8,
+	},
+	memberInfo: {
+		flex: 1,
+	},
+	memberName: {
+		fontSize: 16,
+		fontWeight: "600",
+		color: "#2d3436",
+		marginBottom: 2,
+	},
+	memberRole: {
+		fontSize: 14,
+		fontWeight: "500",
+		color: "#667eea",
+		marginBottom: 2,
+	},
+	memberDetails: {
+		fontSize: 12,
+		color: "#666666",
+		lineHeight: 16,
+	},
+	projectStats: {
+		flexDirection: "row",
+		justifyContent: "space-around",
+		marginTop: 12,
+		paddingTop: 12,
+		borderTopWidth: 1,
+		borderTopColor: "#f1f3f4",
+	},
+	statItem: {
+		alignItems: "center",
+	},
+	projectStatNumber: {
+		fontSize: 20,
+		fontWeight: "700",
+		color: "#2d3436",
+	},
+	projectStatLabel: {
+		fontSize: 12,
+		color: "#666666",
+		marginTop: 2,
+	},
+	contactItem: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingVertical: 8,
+		paddingHorizontal: 4,
+	},
+	contactText: {
+		fontSize: 14,
+		color: "#667eea",
+		marginLeft: 8,
+		textDecorationLine: "underline",
+	},
+	academicInfo: {
+		backgroundColor: "#f8f9fa",
+		borderRadius: 12,
+		padding: 16,
+		alignItems: "center",
+		marginTop: 8,
+		borderWidth: 1,
+		borderColor: "#e9ecef",
+	},
+	academicText: {
+		fontSize: 13,
+		color: "#666666",
+		textAlign: "center",
+		marginBottom: 2,
+		fontStyle: "italic",
+	},
+	// Enhanced Project Styles
+	timelineContainer: {
+		marginTop: 12,
+		paddingTop: 12,
+		borderTopWidth: 1,
+		borderTopColor: "#f1f3f4",
+	},
+	timelineItem: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 6,
+	},
+	timelineText: {
+		fontSize: 14,
+		color: "#666666",
+		marginLeft: 8,
+	},
+	statusBadge: {
+		backgroundColor: "#4CAF50",
+		paddingHorizontal: 8,
+		paddingVertical: 4,
+		borderRadius: 12,
+		alignSelf: "flex-start",
+		marginTop: 8,
+	},
+	statusText: {
+		fontSize: 12,
+		color: "#ffffff",
+		fontWeight: "600",
+	},
+	featureItem: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		marginBottom: 8,
+		paddingLeft: 4,
+	},
+	featureText: {
+		fontSize: 14,
+		color: "#2d3436",
+		marginLeft: 8,
+		flex: 1,
+		lineHeight: 20,
+	},
+	objectiveItem: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		marginBottom: 8,
+		paddingLeft: 4,
+	},
+	objectiveNumber: {
+		fontSize: 14,
+		fontWeight: "600",
+		color: "#E91E63",
+		marginRight: 8,
+		minWidth: 20,
+	},
+	objectiveText: {
+		fontSize: 14,
+		color: "#2d3436",
+		flex: 1,
+		lineHeight: 20,
+	},
+	// Acknowledgment Styles
+	acknowledgmentSubtitle: {
+		fontSize: 15,
+		fontWeight: "600",
+		color: "#2d3436",
+		marginTop: 12,
+		marginBottom: 8,
+	},
+	acknowledgmentItem: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		marginBottom: 6,
+		paddingLeft: 4,
+	},
+	acknowledgmentText: {
+		fontSize: 13,
+		color: "#666666",
+		marginLeft: 8,
+		flex: 1,
+		lineHeight: 18,
+	},
+	inspirationText: {
+		fontSize: 14,
+		color: "#2d3436",
+		fontStyle: "italic",
+		lineHeight: 20,
+		marginTop: 4,
+		paddingLeft: 4,
 	},
 });
