@@ -106,7 +106,7 @@ const lessonReducer = (
 				...state,
 				currentSection: Math.min(
 					state.currentSection + 1,
-					(state.lesson?.content.sections.length || 1) - 1
+					(state.lesson?.content.sections?.length ?? 1) - 1
 				),
 				canProceed: false,
 			};
@@ -242,7 +242,7 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 			}
 
 			// Ensure all sections have required properties
-			lesson.content.sections = lesson.content.sections.map(
+			lesson.content.sections = (lesson.content.sections ?? []).map(
 				(section, index) => ({
 					id: section.id || `section-${index}`,
 					type: section.type || "text",
@@ -373,7 +373,10 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 
 	const handleNextSection = () => {
 		if (state.canProceed && state.lesson) {
-			if (state.currentSection < state.lesson.content.sections.length - 1) {
+			if (
+				state.currentSection <
+				(state.lesson.content.sections?.length ?? 0) - 1
+			) {
 				dispatch({ type: "NEXT_SECTION" });
 			} else {
 				// Last section completed - complete lesson
@@ -418,7 +421,7 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 	const renderProgressBar = () => {
 		if (!state.lesson) return null;
 
-		const totalSections = state.lesson.content.sections.length;
+		const totalSections = state.lesson.content.sections?.length ?? 0;
 		const progress = ((state.currentSection + 1) / totalSections) * 100;
 
 		return (
@@ -436,7 +439,9 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 	const renderCurrentSection = () => {
 		if (!state.lesson) return null;
 
-		const currentSection = state.lesson.content.sections[state.currentSection];
+		const currentSection = (state.lesson.content.sections ?? [])[
+			state.currentSection
+		];
 		if (!currentSection) return null;
 
 		// This will be expanded to render different section types
@@ -453,7 +458,8 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 	const renderNavigationButtons = () => {
 		const isFirstSection = state.currentSection === 0;
 		const isLastSection = state.lesson
-			? state.currentSection === state.lesson.content.sections.length - 1
+			? state.currentSection ===
+			  (state.lesson.content.sections?.length ?? 0) - 1
 			: false;
 
 		return (
@@ -503,28 +509,182 @@ export const DynamicLessonRenderer: React.FC<DynamicLessonRendererProps> = ({
 			</View>
 		);
 	};
+	// Enhanced Book-style lesson renderer with speech functionality
+	const renderBookStyleLesson = (lesson: Lesson) => {
+		const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+		const [sectionTimeSpent, setSectionTimeSpent] = useState(0);
 
-	if (state.loading) {
-		return <LoadingState />;
-	}
+		const sections = lesson.content.sections ?? [];
+		const currentSection = sections[currentSectionIndex];
 
-	if (state.error) {
+		useEffect(() => {
+			const timer = setInterval(() => {
+				setSectionTimeSpent(prev => prev + 1);
+			}, 1000);
+			return () => clearInterval(timer);
+		}, []);
+
+		const handleNextSection = () => {
+			if (currentSectionIndex < sections.length - 1) {
+				setCurrentSectionIndex(prev => prev + 1);
+				setSectionTimeSpent(0);
+			} else {
+				// Complete lesson
+				const finalScore = 100; // You can implement scoring logic here
+				handleLessonComplete(finalScore, state.timeSpent);
+			}
+		};
+
+		const handlePreviousSection = () => {
+			if (currentSectionIndex > 0) {
+				setCurrentSectionIndex(prev => prev - 1);
+				setSectionTimeSpent(0);
+			}
+		};
+
+		const handleSpeak = (text: string) => {
+			SpeechService.speakVocabulary(text);
+		};
+
+		if (!currentSection) {
+			return (
+				<View style={styles.container}>
+					<Text style={styles.errorText}>No content available</Text>
+				</View>
+			);
+		}
+
+		const sectionContent = currentSection.content as any;
+
+		return (
+			<View style={styles.container}>
+				{/* Header */}
+				<View style={styles.header}>
+					<TouchableOpacity onPress={handleExit}>
+						<Ionicons name="arrow-back" size={24} color="#333" />
+					</TouchableOpacity>
+					<Text style={styles.lessonTitle}>{lesson.title}</Text>
+					<Text style={styles.timeDisplay}>
+						{Math.floor(state.timeSpent / 60)}:{(state.timeSpent % 60).toString().padStart(2, '0')}
+					</Text>
+				</View>
+
+				{/* Progress */}
+				<View style={styles.progressContainer}>
+					<View style={styles.progressBar}>
+						<View style={[styles.progressFill, { width: `${((currentSectionIndex + 1) / sections.length) * 100}%` }]} />
+					</View>
+					<Text style={styles.progressText}>
+						{currentSectionIndex + 1} / {sections.length}
+					</Text>
+				</View>
+
+				{/* Content */}
+				<ScrollView style={styles.content}>
+					<View style={styles.bookContainer}>
+						{/* Introduction Section */}
+						{sectionContent?.introduction_title && (
+							<View style={styles.bookSection}>
+								<View style={styles.titleRow}>
+									<Text style={styles.bookSectionTitle}>{sectionContent.introduction_title}</Text>
+									<TouchableOpacity 
+										style={styles.speakButton}
+										onPress={() => handleSpeak(sectionContent.introduction_content)}
+									>
+										<Ionicons name="volume-high" size={20} color="#007AFF" />
+									</TouchableOpacity>
+								</View>
+								<Text style={styles.bookSectionContent}>{sectionContent.introduction_content}</Text>
+							</View>
+						)}
+
+						{/* Explanation Section */}
+						{sectionContent?.explanation_title && (
+							<View style={styles.bookSection}>
+								<View style={styles.titleRow}>
+									<Text style={styles.bookSectionTitle}>{sectionContent.explanation_title}</Text>
+									<TouchableOpacity 
+										style={styles.speakButton}
+										onPress={() => handleSpeak(sectionContent.explanation_content)}
+									>
+										<Ionicons name="volume-high" size={20} color="#007AFF" />
+									</TouchableOpacity>
+								</View>
+								<Text style={styles.bookSectionContent}>{sectionContent.explanation_content}</Text>
+							</View>
+						)}
+
+						{/* Example Section */}
+						{sectionContent?.example && (
+							<View style={styles.bookSection}>
+								<View style={styles.titleRow}>
+									<Text style={styles.bookSectionTitle}>Example</Text>
+									<TouchableOpacity 
+										style={styles.speakButton}
+										onPress={() => handleSpeak(sectionContent.example)}
+									>
+										<Ionicons name="volume-high" size={20} color="#007AFF" />
+									</TouchableOpacity>
+								</View>
+								<Text style={styles.exampleText}>{sectionContent.example}</Text>
+							</View>
+						)}
+					</View>
+				</ScrollView>
+
+				{/* Navigation */}
+				<View style={styles.navigationContainer}>
+					<TouchableOpacity
+						style={[styles.navButton, currentSectionIndex === 0 && styles.navButtonDisabled]}
+						onPress={handlePreviousSection}
+						disabled={currentSectionIndex === 0}
+					>
+						<Ionicons name="chevron-back" size={20} color={currentSectionIndex === 0 ? "#ccc" : "#007AFF"} />
+						<Text style={[styles.navButtonText, currentSectionIndex === 0 && styles.navButtonTextDisabled]}>
+							Previous
+						</Text>
+					</TouchableOpacity>
+
+					<TouchableOpacity
+						style={styles.navButton}
+						onPress={handleNextSection}
+					>
+						<Text style={styles.navButtonText}>
+							{currentSectionIndex === sections.length - 1 ? "Complete" : "Next"}
+						</Text>
+						<Ionicons name="chevron-forward" size={20} color="#007AFF" />
+					</TouchableOpacity>
+				</View>
+			</View>
+		);
+	};
+
+	if (state.loading) return <LoadingState />;
+	if (state.error)
 		return (
 			<ErrorState
-				title="Lesson Error"
+				title="Error"
 				description={state.error}
 				onRetry={loadLesson}
 			/>
 		);
-	}
-
-	if (!state.lesson) {
+	if (!state.lesson)
 		return (
 			<EmptyState
-				title="Lesson Not Found"
-				description="This lesson could not be loaded. Please try another lesson or contact support."
+				title="Lesson not found."
+				description="This lesson could not be loaded."
 			/>
 		);
+	// Book-style lesson rendering - check if any section has book-style content
+	const hasBookStyleContent = state.lesson.content.sections?.some(section => {
+		const sectionContent = section.content as any;
+		return sectionContent?.introduction_title || 
+			   sectionContent?.explanation_title || 
+			   sectionContent?.example;
+	});
+
+	if (hasBookStyleContent) {
+		return renderBookStyleLesson(state.lesson);
 	}
 
 	if (
@@ -1113,8 +1273,7 @@ const styles = StyleSheet.create({
 		color: "#fff",
 		fontSize: 18,
 		fontWeight: "600",
-	},
-	listenButton: {
+	},	listenButton: {
 		marginLeft: 4,
 		padding: 4,
 		borderRadius: 16,
@@ -1125,5 +1284,41 @@ const styles = StyleSheet.create({
 	listenButtonText: {
 		fontSize: 18,
 		color: "#007AFF",
+	},
+	// Book-style lesson styles
+	bookContainer: {
+		padding: 20,
+		backgroundColor: "#fff",
+	},
+	bookSection: {
+		marginBottom: 24,
+		backgroundColor: "#f8f9fa",
+		borderRadius: 12,
+		padding: 16,
+		borderLeftWidth: 4,
+		borderLeftColor: "#007AFF",
+	},
+	titleRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: 12,
+	},
+	bookSectionTitle: {
+		fontSize: 18,
+		fontWeight: "bold",
+		color: "#333",
+		flex: 1,
+	},
+	bookSectionContent: {
+		fontSize: 16,
+		lineHeight: 24,
+		color: "#444",
+	},
+	speakButton: {
+		padding: 8,
+		borderRadius: 20,
+		backgroundColor: "#e3f2fd",
+		marginLeft: 12,
 	},
 });
