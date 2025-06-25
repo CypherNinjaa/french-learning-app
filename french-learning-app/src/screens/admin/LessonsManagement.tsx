@@ -1,5 +1,5 @@
-// Stage 3.2: Lessons Management Screen
-// Comprehensive lessons management interface for admin users
+// Stage 4.4: Book-Style Lessons Management Screen
+// Enhanced lessons management interface for book-style content
 
 import React, { useState, useEffect } from "react";
 import {
@@ -10,34 +10,124 @@ import {
 	TouchableOpacity,
 	Alert,
 	RefreshControl,
+	ActivityIndicator,
+	SafeAreaView,
 	Modal,
 	TextInput,
-	ActivityIndicator,
 	Switch,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { ContentManagementService } from "../../services/contentManagementService";
+import { BookLessonEditor } from "./BookLessonEditor";
 import { ContentPreview } from "../../components/admin/ContentPreview";
 import { theme } from "../../constants/theme";
 import {
-	Lesson,
 	Module,
 	Level,
 	CreateLessonDto,
 	UpdateLessonDto,
+	LessonType as BaseLessonType,
+	DifficultyLevel as BaseDifficultyLevel,
+} from "../../types";
+import {
+	Lesson,
 	LessonType,
 	DifficultyLevel,
-} from "../../types";
+	LessonContent,
+} from "../../types/LessonTypes";
+
+// Helper types for form editing
+interface BookStyleSection {
+	introduction_title: string;
+	introduction_content: string;
+	explanation_title: string;
+	explanation_content: string;
+	example: string;
+	questions?: SectionQuestion[];
+}
+
+interface SectionQuestion {
+	id?: number;
+	question_text: string;
+	question_type:
+		| "multiple_choice"
+		| "fill_blank"
+		| "translation"
+		| "listening"
+		| "pronunciation"
+		| "matching";
+	options?: string[];
+	correct_answer: string;
+	explanation?: string;
+	points: number;
+}
+
+interface BookStyleLessonContent {
+	sections: BookStyleSection[];
+}
+
+// Convert between form content and proper LessonContent
+const convertToLessonContent = (
+	simple: BookStyleLessonContent
+): LessonContent => {
+	return {
+		sections: simple.sections.map((section, index) => ({
+			id: `section-${index}`,
+			type: "text" as any,
+			title: section.introduction_title,
+			content: {
+				introduction_title: section.introduction_title,
+				introduction_content: section.introduction_content,
+				explanation_title: section.explanation_title,
+				explanation_content: section.explanation_content,
+				example: section.example,
+			},
+			order_index: index,
+			is_required: true,
+		})),
+	};
+};
+
+const convertFromLessonContent = (
+	content: LessonContent
+): BookStyleLessonContent => {
+	if (content.sections && content.sections.length > 0) {
+		return {
+			sections: content.sections.map((section) => ({
+				introduction_title:
+					(section.content as any)?.introduction_title || section.title || "",
+				introduction_content:
+					(section.content as any)?.introduction_content || "",
+				explanation_title: (section.content as any)?.explanation_title || "",
+				explanation_content:
+					(section.content as any)?.explanation_content || "",
+				example: (section.content as any)?.example || "",
+			})),
+		};
+	}
+
+	// Handle legacy format
+	return {
+		sections: [
+			{
+				introduction_title: content.introduction_title || "",
+				introduction_content: content.introduction || "",
+				explanation_title: content.explanation_title || "",
+				explanation_content: content.explanation || "",
+				example: content.example || "",
+			},
+		],
+	};
+};
 
 interface LessonFormData {
 	title: string;
-	description: string;
 	module_id: number;
 	lesson_type: LessonType;
 	order_index: number;
-	estimated_time_minutes: number;
 	difficulty_level: DifficultyLevel;
-	content: any;
+	content: BookStyleLessonContent; // Use new book-style content for form
 	is_active: boolean;
 }
 
@@ -54,17 +144,25 @@ export const LessonsManagement = () => {
 	const [selectedModule, setSelectedModule] = useState<number | null>(null);
 	const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
 	const [formLoading, setFormLoading] = useState(false);
+	const [currentSectionTab, setCurrentSectionTab] = useState<{
+		[key: number]: "content" | "questions";
+	}>({});
 	const [formData, setFormData] = useState<LessonFormData>({
 		title: "",
-		description: "",
 		module_id: 0,
 		lesson_type: "vocabulary",
 		order_index: 1,
-		estimated_time_minutes: 10,
 		difficulty_level: "beginner",
 		content: {
-			introduction: "",
-			sections: [],
+			sections: [
+				{
+					introduction_title: "",
+					introduction_content: "",
+					explanation_title: "",
+					explanation_content: "",
+					example: "",
+				},
+			],
 		},
 		is_active: true,
 	});
@@ -87,9 +185,8 @@ export const LessonsManagement = () => {
 					setSelectedLevel(modulesRes.data[0].level_id);
 				}
 			}
-
 			if (lessonsRes.success && lessonsRes.data) {
-				setLessons(lessonsRes.data);
+				setLessons(lessonsRes.data as unknown as Lesson[]);
 			}
 		} catch (error) {
 			console.error("Error loading data:", error);
@@ -114,72 +211,70 @@ export const LessonsManagement = () => {
 		const filteredModules = getFilteredModules();
 		const maxOrder =
 			lessons.length > 0 ? Math.max(...lessons.map((l) => l.order_index)) : 0;
-
 		setFormData({
 			title: "",
-			description: "",
 			module_id: filteredModules.length > 0 ? filteredModules[0].id : 0,
 			lesson_type: "vocabulary",
 			order_index: maxOrder + 1,
-			estimated_time_minutes: 10,
 			difficulty_level: "beginner",
 			content: {
-				introduction: "",
-				sections: [],
+				sections: [
+					{
+						introduction_title: "",
+						introduction_content: "",
+						explanation_title: "",
+						explanation_content: "",
+						example: "",
+					},
+				],
 			},
 			is_active: true,
 		});
 		setEditingLesson(null);
 		setModalVisible(true);
 	};
-
 	const openEditModal = (lesson: Lesson) => {
-		// Ensure content has proper structure
-		let content = lesson.content || {};
-		if (!content.introduction) content.introduction = "";
-		if (!content.sections) content.sections = [];
-
+		// Convert lesson content to simple form format
+		const simpleContent = convertFromLessonContent(lesson.content || {});
 		setFormData({
 			title: lesson.title,
-			description: lesson.description || "",
 			module_id: lesson.module_id,
 			lesson_type: lesson.lesson_type,
 			order_index: lesson.order_index,
-			estimated_time_minutes: lesson.estimated_time_minutes,
 			difficulty_level: lesson.difficulty_level,
-			content: content,
+			content: simpleContent,
 			is_active: lesson.is_active,
 		});
 		setEditingLesson(lesson);
 		setModalVisible(true);
 	};
 	const validateLessonContent = (content: any): string | null => {
-		if (!content) {
-			return "Content is required";
-		}
-
-		if (!content.introduction || content.introduction.trim() === "") {
-			return "Introduction is required";
-		}
-
-		if (
-			!content.sections ||
-			!Array.isArray(content.sections) ||
-			content.sections.length === 0
-		) {
+		if (!content) return "Content is required";
+		if (!content.sections || content.sections.length === 0)
 			return "At least one section is required";
-		}
 
 		for (let i = 0; i < content.sections.length; i++) {
 			const section = content.sections[i];
-			if (!section.french || section.french.trim() === "") {
-				return `Section ${i + 1}: French text is required`;
-			}
-			if (!section.english || section.english.trim() === "") {
-				return `Section ${i + 1}: English translation is required`;
-			}
+			if (
+				!section.introduction_title ||
+				section.introduction_title.trim() === ""
+			)
+				return `Section ${i + 1}: Introduction title is required`;
+			if (
+				!section.introduction_content ||
+				section.introduction_content.trim() === ""
+			)
+				return `Section ${i + 1}: Introduction content is required`;
+			if (!section.explanation_title || section.explanation_title.trim() === "")
+				return `Section ${i + 1}: Explanation title is required`;
+			if (
+				!section.explanation_content ||
+				section.explanation_content.trim() === ""
+			)
+				return `Section ${i + 1}: Explanation content is required`;
+			if (!section.example || section.example.trim() === "")
+				return `Section ${i + 1}: Example is required`;
 		}
-
 		return null;
 	};
 
@@ -202,18 +297,17 @@ export const LessonsManagement = () => {
 		}
 
 		setFormLoading(true);
-
 		try {
+			const convertedContent = convertToLessonContent(formData.content);
 			if (editingLesson) {
 				// Update existing lesson
 				const updateData: UpdateLessonDto = {
 					title: formData.title,
-					description: formData.description,
-					lesson_type: formData.lesson_type,
+					lesson_type: formData.lesson_type as any, // Cast to handle type mismatch
 					order_index: formData.order_index,
-					estimated_time_minutes: formData.estimated_time_minutes,
+					estimated_time_minutes: 15, // Default value
 					difficulty_level: formData.difficulty_level,
-					content: formData.content,
+					content: convertedContent,
 					is_active: formData.is_active,
 				};
 
@@ -230,13 +324,12 @@ export const LessonsManagement = () => {
 				// Create new lesson
 				const createData: CreateLessonDto = {
 					title: formData.title,
-					description: formData.description,
 					module_id: formData.module_id,
-					lesson_type: formData.lesson_type,
+					lesson_type: formData.lesson_type as any, // Cast to handle type mismatch
 					order_index: formData.order_index,
-					estimated_time_minutes: formData.estimated_time_minutes,
+					estimated_time_minutes: 15, // Default value
 					difficulty_level: formData.difficulty_level,
-					content: formData.content,
+					content: convertedContent,
 				};
 
 				const result = await ContentManagementService.createLesson(createData);
@@ -289,7 +382,6 @@ export const LessonsManagement = () => {
 			]
 		);
 	};
-
 	const getLessonTypeIcon = (type: LessonType) => {
 		const icons = {
 			vocabulary: "📝",
@@ -298,6 +390,8 @@ export const LessonsManagement = () => {
 			pronunciation: "🗣️",
 			reading: "📖",
 			listening: "👂",
+			cultural: "🎭",
+			mixed: "🎯",
 		};
 		return icons[type] || "📄";
 	};
@@ -309,6 +403,8 @@ export const LessonsManagement = () => {
 			pronunciation: "#FFEAA7",
 			reading: "#DDA0DD",
 			listening: "#FF6B6B",
+			cultural: "#FF9999",
+			mixed: "#B19CD9",
 		};
 		return colors[type] || theme.colors.primary;
 	};
@@ -388,6 +484,29 @@ export const LessonsManagement = () => {
 					},
 				],
 			},
+			cultural: {
+				introduction: "Explore French culture, traditions, and customs.",
+				sections: [
+					{
+						french: "La culture française",
+						english: "French culture",
+						pronunciation: "lah kul-TOOR frahn-SEHZ",
+						example: "Learn about French traditions and way of life.",
+					},
+				],
+			},
+			mixed: {
+				introduction:
+					"A comprehensive lesson combining multiple learning aspects.",
+				sections: [
+					{
+						french: "Leçon intégrée",
+						english: "Integrated lesson",
+						pronunciation: "luh-SOHN an-tay-GRAY",
+						example: "Practice vocabulary, grammar, and conversation together.",
+					},
+				],
+			},
 		};
 		return templates[lessonType] || templates.vocabulary;
 	};
@@ -408,7 +527,9 @@ export const LessonsManagement = () => {
 							</Text>
 							<Text style={styles.lessonTitle}>{lesson.title}</Text>
 						</View>
-						<Text style={styles.lessonDescription}>{lesson.description}</Text>
+						<Text style={styles.lessonDescription}>
+							{lesson.content?.introduction || "No description available"}
+						</Text>
 						<View style={styles.lessonMeta}>
 							<Text style={styles.metaText}>
 								{level?.name} • {module?.title}
@@ -468,7 +589,7 @@ export const LessonsManagement = () => {
 					<View style={styles.lessonDetailItem}>
 						<Text style={styles.detailLabel}>Duration:</Text>
 						<Text style={styles.detailValue}>
-							{lesson.estimated_time_minutes}min
+							{lesson.estimated_duration}min
 						</Text>
 					</View>
 					<View style={styles.lessonDetailItem}>
@@ -608,7 +729,7 @@ export const LessonsManagement = () => {
 							<Text style={styles.modalCancelButton}>Cancel</Text>
 						</TouchableOpacity>
 						<Text style={styles.modalTitle}>
-							{editingLesson ? "Edit Lesson" : "Create Lesson"}
+							{editingLesson ? "Edit Lesson" : "Create New Lesson"}
 						</Text>
 						<TouchableOpacity onPress={handleSubmit} disabled={formLoading}>
 							<Text
@@ -620,13 +741,11 @@ export const LessonsManagement = () => {
 								{formLoading ? "Saving..." : "Save"}
 							</Text>
 						</TouchableOpacity>
-					</View>
-
+					</View>{" "}
 					<ScrollView style={styles.modalContent}>
 						{/* Basic Information */}
 						<View style={styles.formSection}>
 							<Text style={styles.sectionTitle}>Basic Information</Text>
-
 							<Text style={styles.fieldLabel}>Title *</Text>
 							<TextInput
 								style={styles.textInput}
@@ -636,19 +755,6 @@ export const LessonsManagement = () => {
 								}
 								placeholder="Lesson title"
 								placeholderTextColor={theme.colors.textSecondary}
-							/>
-
-							<Text style={styles.fieldLabel}>Description</Text>
-							<TextInput
-								style={[styles.textInput, styles.textArea]}
-								value={formData.description}
-								onChangeText={(text) =>
-									setFormData((prev) => ({ ...prev, description: text }))
-								}
-								placeholder="Lesson description"
-								placeholderTextColor={theme.colors.textSecondary}
-								multiline
-								numberOfLines={3}
 							/>
 						</View>
 						{/* Organization */}
@@ -692,6 +798,8 @@ export const LessonsManagement = () => {
 									<Picker.Item label="Pronunciation" value="pronunciation" />
 									<Picker.Item label="Reading" value="reading" />
 									<Picker.Item label="Listening" value="listening" />
+									<Picker.Item label="Cultural" value="cultural" />
+									<Picker.Item label="Mixed" value="mixed" />
 								</Picker>
 							</View>
 
@@ -709,25 +817,10 @@ export const LessonsManagement = () => {
 								keyboardType="numeric"
 								placeholderTextColor={theme.colors.textSecondary}
 							/>
-						</View>
+						</View>{" "}
 						{/* Lesson Settings */}
 						<View style={styles.formSection}>
 							<Text style={styles.sectionTitle}>Settings</Text>
-
-							<Text style={styles.fieldLabel}>Estimated Time (minutes)</Text>
-							<TextInput
-								style={styles.textInput}
-								value={formData.estimated_time_minutes.toString()}
-								onChangeText={(text) =>
-									setFormData((prev) => ({
-										...prev,
-										estimated_time_minutes: parseInt(text) || 10,
-									}))
-								}
-								placeholder="Duration in minutes"
-								keyboardType="numeric"
-								placeholderTextColor={theme.colors.textSecondary}
-							/>
 
 							<Text style={styles.fieldLabel}>Difficulty Level</Text>
 							<View style={styles.pickerContainer}>
@@ -761,207 +854,167 @@ export const LessonsManagement = () => {
 									thumbColor={formData.is_active ? "white" : "#f4f3f4"}
 								/>
 							</View>
-						</View>
+						</View>{" "}
 						{/* Content */}
 						<View style={styles.formSection}>
-							<Text style={styles.sectionTitle}>Content</Text>
+							<Text style={styles.sectionTitle}>Lesson Content</Text>
+							<Text style={styles.helpText}>
+								Create multiple sections for a book-style lesson with
+								introduction, explanation, and examples. Each section can have
+								speech functionality.
+							</Text>
 							<View style={styles.contentEditor}>
-								<Text style={styles.fieldLabel}>Introduction</Text>
-								<TextInput
-									style={[styles.textInput, styles.textArea]}
-									value={formData.content.introduction || ""}
-									onChangeText={(text) =>
-										setFormData((prev) => ({
-											...prev,
-											content: { ...prev.content, introduction: text },
-										}))
-									}
-									placeholder="Brief introduction for this lesson"
-									placeholderTextColor={theme.colors.textSecondary}
-									multiline
-									numberOfLines={2}
-								/>
-
-								<Text style={styles.fieldLabel}>Sections</Text>
-								{(formData.content.sections || []).map(
-									(section: any, index: number) => (
-										<View key={index} style={styles.sectionEditor}>
-											<View style={styles.sectionHeader}>
-												<Text style={styles.sectionNumber}>
-													Section {index + 1}
-												</Text>
+								{formData.content.sections.map((section, index) => (
+									<View key={index} style={styles.sectionEditor}>
+										<View style={styles.sectionHeader}>
+											<Text style={styles.sectionNumber}>
+												Section {index + 1}
+											</Text>
+											{formData.content.sections.length > 1 && (
 												<TouchableOpacity
 													style={styles.deleteSectionButton}
 													onPress={() => {
-														const newSections = [
-															...(formData.content.sections || []),
-														];
+														const newSections = [...formData.content.sections];
 														newSections.splice(index, 1);
 														setFormData((prev) => ({
 															...prev,
-															content: {
-																...prev.content,
-																sections: newSections,
-															},
+															content: { sections: newSections },
 														}));
 													}}
 												>
 													<Text style={styles.deleteSectionText}>Delete</Text>
 												</TouchableOpacity>
-											</View>
-
-											<Text style={styles.subFieldLabel}>French</Text>
-											<TextInput
-												style={styles.textInput}
-												value={section.french || ""}
-												onChangeText={(text) => {
-													const newSections = [
-														...(formData.content.sections || []),
-													];
-													newSections[index] = {
-														...newSections[index],
-														french: text,
-													};
-													setFormData((prev) => ({
-														...prev,
-														content: { ...prev.content, sections: newSections },
-													}));
-												}}
-												placeholder="French text"
-												placeholderTextColor={theme.colors.textSecondary}
-											/>
-
-											<Text style={styles.subFieldLabel}>English</Text>
-											<TextInput
-												style={styles.textInput}
-												value={section.english || ""}
-												onChangeText={(text) => {
-													const newSections = [
-														...(formData.content.sections || []),
-													];
-													newSections[index] = {
-														...newSections[index],
-														english: text,
-													};
-													setFormData((prev) => ({
-														...prev,
-														content: { ...prev.content, sections: newSections },
-													}));
-												}}
-												placeholder="English translation"
-												placeholderTextColor={theme.colors.textSecondary}
-											/>
-
-											<Text style={styles.subFieldLabel}>Pronunciation</Text>
-											<TextInput
-												style={styles.textInput}
-												value={section.pronunciation || ""}
-												onChangeText={(text) => {
-													const newSections = [
-														...(formData.content.sections || []),
-													];
-													newSections[index] = {
-														...newSections[index],
-														pronunciation: text,
-													};
-													setFormData((prev) => ({
-														...prev,
-														content: { ...prev.content, sections: newSections },
-													}));
-												}}
-												placeholder="Pronunciation guide"
-												placeholderTextColor={theme.colors.textSecondary}
-											/>
-
-											<Text style={styles.subFieldLabel}>Example</Text>
-											<TextInput
-												style={styles.textInput}
-												value={section.example || ""}
-												onChangeText={(text) => {
-													const newSections = [
-														...(formData.content.sections || []),
-													];
-													newSections[index] = {
-														...newSections[index],
-														example: text,
-													};
-													setFormData((prev) => ({
-														...prev,
-														content: { ...prev.content, sections: newSections },
-													}));
-												}}
-												placeholder="Usage example"
-												placeholderTextColor={theme.colors.textSecondary}
-											/>
+											)}
 										</View>
-									)
-								)}
+
+										<Text style={styles.subFieldLabel}>Introduction Title</Text>
+										<TextInput
+											style={styles.textInput}
+											value={section.introduction_title}
+											onChangeText={(text) => {
+												const newSections = [...formData.content.sections];
+												newSections[index] = {
+													...newSections[index],
+													introduction_title: text,
+												};
+												setFormData((prev) => ({
+													...prev,
+													content: { sections: newSections },
+												}));
+											}}
+											placeholder="Introduction title"
+											placeholderTextColor={theme.colors.textSecondary}
+										/>
+
+										<Text style={styles.subFieldLabel}>
+											Introduction Content
+										</Text>
+										<TextInput
+											style={[styles.textInput, styles.textArea]}
+											value={section.introduction_content}
+											onChangeText={(text) => {
+												const newSections = [...formData.content.sections];
+												newSections[index] = {
+													...newSections[index],
+													introduction_content: text,
+												};
+												setFormData((prev) => ({
+													...prev,
+													content: { sections: newSections },
+												}));
+											}}
+											placeholder="Introduction content"
+											placeholderTextColor={theme.colors.textSecondary}
+											multiline
+											numberOfLines={3}
+										/>
+
+										<Text style={styles.subFieldLabel}>Explanation Title</Text>
+										<TextInput
+											style={styles.textInput}
+											value={section.explanation_title}
+											onChangeText={(text) => {
+												const newSections = [...formData.content.sections];
+												newSections[index] = {
+													...newSections[index],
+													explanation_title: text,
+												};
+												setFormData((prev) => ({
+													...prev,
+													content: { sections: newSections },
+												}));
+											}}
+											placeholder="Explanation title"
+											placeholderTextColor={theme.colors.textSecondary}
+										/>
+
+										<Text style={styles.subFieldLabel}>
+											Explanation Content
+										</Text>
+										<TextInput
+											style={[styles.textInput, styles.textArea]}
+											value={section.explanation_content}
+											onChangeText={(text) => {
+												const newSections = [...formData.content.sections];
+												newSections[index] = {
+													...newSections[index],
+													explanation_content: text,
+												};
+												setFormData((prev) => ({
+													...prev,
+													content: { sections: newSections },
+												}));
+											}}
+											placeholder="Explanation content"
+											placeholderTextColor={theme.colors.textSecondary}
+											multiline
+											numberOfLines={3}
+										/>
+
+										<Text style={styles.subFieldLabel}>Example</Text>
+										<TextInput
+											style={styles.textInput}
+											value={section.example}
+											onChangeText={(text) => {
+												const newSections = [...formData.content.sections];
+												newSections[index] = {
+													...newSections[index],
+													example: text,
+												};
+												setFormData((prev) => ({
+													...prev,
+													content: { sections: newSections },
+												}));
+											}}
+											placeholder="Example sentence or usage"
+											placeholderTextColor={theme.colors.textSecondary}
+										/>
+									</View>
+								))}
 
 								<TouchableOpacity
 									style={styles.addSectionButton}
 									onPress={() => {
-										const newSection = {
-											french: "",
-											english: "",
-											pronunciation: "",
+										const newSection: BookStyleSection = {
+											introduction_title: "",
+											introduction_content: "",
+											explanation_title: "",
+											explanation_content: "",
 											example: "",
 										};
 										const newSections = [
-											...(formData.content.sections || []),
+											...formData.content.sections,
 											newSection,
 										];
 										setFormData((prev) => ({
 											...prev,
-											content: { ...prev.content, sections: newSections },
+											content: { sections: newSections },
 										}));
 									}}
 								>
 									<Text style={styles.addSectionButtonText}>+ Add Section</Text>
 								</TouchableOpacity>
-
-								<TouchableOpacity
-									style={styles.loadTemplateButton}
-									onPress={() => {
-										const template = getContentTemplate(formData.lesson_type);
-										setFormData((prev) => ({ ...prev, content: template }));
-									}}
-								>
-									<Text style={styles.loadTemplateButtonText}>
-										Load Template
-									</Text>
-								</TouchableOpacity>
 							</View>
-							<Text style={styles.helpText}>
-								Use the form above to create structured lesson content, or edit
-								the JSON directly below if needed.
-							</Text>
-							<View style={styles.helpSection}>
-								<Text style={styles.helpTitle}>Content Structure Guide:</Text>
-								<Text style={styles.helpContent}>
-									• Introduction: A brief overview of the lesson{"\n"}•
-									Sections: Array of learning components, each with:{"\n"}-
-									French: The French text or word{"\n"}- English: The English
-									translation{"\n"}- Pronunciation: Optional pronunciation guide
-									{"\n"}- Example: Optional usage example
-								</Text>
-							</View>
-							<Text style={styles.fieldLabel}>Raw JSON (Advanced)</Text>
-							<TextInput
-								style={[styles.textInput, styles.textAreaLarge]}
-								value={JSON.stringify(formData.content, null, 2)}
-								onChangeText={(text) => {
-									try {
-										const parsed = JSON.parse(text);
-										setFormData((prev) => ({ ...prev, content: parsed }));
-									} catch (e) {
-										// Invalid JSON, keep the text as is for now
-									}
-								}}
-								placeholder="Enter lesson content as JSON"
-								placeholderTextColor={theme.colors.textSecondary}
-								multiline
-								numberOfLines={6}
-							/>
 						</View>
 					</ScrollView>
 				</View>
@@ -975,7 +1028,7 @@ export const LessonsManagement = () => {
 					setPreviewLesson(null);
 				}}
 				contentType="lesson"
-				content={previewLesson}
+				content={previewLesson as any}
 			/>
 		</View>
 	);

@@ -9,6 +9,7 @@ import {
 	Alert,
 	RefreshControl,
 	Image,
+	Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -63,30 +64,21 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 	const loadLessons = async () => {
 		try {
 			setError(null);
-
 			const { lessons: lessonsData, progress } =
-				await LessonService.getLessonsByModule(moduleId, userId); // Combine lessons with progress and determine unlock status
+				await LessonService.getLessonsByModule(moduleId, userId);
+
+			// Combine lessons with progress and determine unlock status
 			const lessonsWithProgress: LessonWithProgress[] = lessonsData.map(
 				(lesson: Lesson, index: number) => {
 					const userProgress = progress.find(
 						(p: UserProgress) => p.lesson_id === lesson.id
 					);
-					const isFirstLesson = index === 0;
-					const previousLessonCompleted =
-						index === 0 ||
-						progress.some(
-							(p: UserProgress) =>
-								p.lesson_id === lessonsData[index - 1]?.id &&
-								p.status === "completed" &&
-								p.score >= 60
-						);
 
 					return {
 						...lesson,
 						userProgress,
-						isUnlocked: isFirstLesson || previousLessonCompleted,
-						nextUnlocked:
-							userProgress?.status === "completed" && userProgress.score >= 60,
+						isUnlocked: true, // All lessons are always unlocked
+						nextUnlocked: true, // All lessons are always unlocked
 					};
 				}
 			);
@@ -106,19 +98,22 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 		loadLessons();
 	}, []);
 	const handleLessonPress = (lesson: LessonWithProgress) => {
-		if (!lesson.isUnlocked) {
+		try {
+			// Navigate to lesson screen - no locking, all lessons are clickable
+			console.log("Navigating to lesson:", lesson.id, lesson.title);
+			(navigation as any).navigate("Lesson", {
+				lessonId: lesson.id,
+				lessonTitle: lesson.title,
+				userId: userId,
+			});
+		} catch (error) {
+			console.error("Navigation error:", error);
 			Alert.alert(
-				"Lesson Locked",
-				"Complete the previous lesson to unlock this one.",
+				"Navigation Error",
+				"Unable to open lesson. Please try again.",
 				[{ text: "OK" }]
 			);
-			return;
 		}
-
-		// Navigate to lesson renderer
-		// Note: This would need proper navigation setup with typed navigation
-		console.log("Navigate to lesson:", lesson.id, lesson.title);
-		Alert.alert("Lesson Selected", `Opening ${lesson.title}...`);
 	};
 
 	const getDifficultyColor = (difficulty: DifficultyLevel): string => {
@@ -172,24 +167,16 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 		index: number;
 	}) => (
 		<TouchableOpacity
-			style={[styles.lessonCard, !item.isUnlocked && styles.lessonCardLocked]}
+			style={styles.lessonCard}
 			onPress={() => handleLessonPress(item)}
-			disabled={!item.isUnlocked}
+			activeOpacity={0.7}
 		>
 			<View style={styles.lessonHeader}>
 				<View style={styles.lessonNumber}>
 					<Text style={styles.lessonNumberText}>{index + 1}</Text>
 				</View>
-
 				<View style={styles.lessonInfo}>
-					<Text
-						style={[
-							styles.lessonTitle,
-							!item.isUnlocked && styles.lessonTitleLocked,
-						]}
-					>
-						{item.title}
-					</Text>
+					<Text style={[styles.lessonTitle]}>{item.title}</Text>
 
 					<View style={styles.lessonMeta}>
 						<View
@@ -208,30 +195,31 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 						</Text>
 					</View>
 				</View>
-
-				<View style={styles.lessonStatus}>
-					{!item.isUnlocked ? (
-						<Ionicons name="lock-closed" size={24} color="#999" />
-					) : (
-						<View style={styles.progressContainer}>
-							<View
-								style={[
-									styles.progressIndicator,
-									{ backgroundColor: getProgressColor(item.userProgress) },
-								]}
-							>
-								{item.userProgress?.status === "completed" && (
-									<Ionicons name="checkmark" size={16} color="#fff" />
-								)}
-								{item.userProgress?.status === "in_progress" && (
-									<View style={styles.progressDot} />
-								)}
-							</View>
-							<Text style={styles.progressText}>
-								{getProgressText(item.userProgress)}
-							</Text>
+				<View style={styles.lessonStatus} pointerEvents="box-none">
+					<View style={styles.progressContainer} pointerEvents="box-none">
+						<View
+							style={[
+								styles.progressIndicator,
+								{ backgroundColor: getProgressColor(item.userProgress) },
+							]}
+						>
+							{item.userProgress?.status === "completed" && (
+								<Ionicons name="checkmark" size={16} color="#fff" />
+							)}
+							{item.userProgress?.status === "in_progress" && (
+								<View style={styles.progressDot} />
+							)}
 						</View>
-					)}
+						<Text style={styles.progressText}>
+							{getProgressText(item.userProgress)}
+						</Text>
+						<Ionicons
+							name="chevron-forward"
+							size={16}
+							color="#666"
+							style={styles.chevron}
+						/>
+					</View>
 				</View>
 			</View>
 
@@ -327,8 +315,9 @@ export const LessonListScreen: React.FC<LessonListScreenProps> = ({
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
-						colors={["#007AFF"]}
-						tintColor="#007AFF"
+						{...(Platform.OS === "android"
+							? { colors: ["#007AFF"] }
+							: { tintColor: "#007AFF" })}
 					/>
 				}
 			/>
@@ -554,5 +543,9 @@ const styles = StyleSheet.create({
 		color: "#fff",
 		fontSize: 16,
 		fontWeight: "600",
+	},
+	chevron: {
+		marginLeft: 4,
+		marginTop: 2,
 	},
 });
