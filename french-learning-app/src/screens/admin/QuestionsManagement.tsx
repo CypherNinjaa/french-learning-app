@@ -272,7 +272,6 @@ export const QuestionsManagement = () => {
 			setFormLoading(false);
 		}
 	};
-
 	const handleDelete = (question: Question) => {
 		Alert.alert(
 			"Delete Question",
@@ -284,10 +283,25 @@ export const QuestionsManagement = () => {
 					style: "destructive",
 					onPress: async () => {
 						try {
-							// Note: We should implement deleteQuestion in the service
-							Alert.alert("Info", "Delete functionality will be implemented");
+							setLoading(true);
+							const result = await ContentManagementService.deleteQuestion(
+								question.id
+							);
+							if (result.success) {
+								Alert.alert("Success", "Question deleted successfully");
+								// Refresh the questions list
+								loadData();
+							} else {
+								Alert.alert(
+									"Error",
+									result.error || "Failed to delete question"
+								);
+							}
 						} catch (error) {
+							console.error("Delete question error:", error);
 							Alert.alert("Error", "Failed to delete question");
+						} finally {
+							setLoading(false);
 						}
 					},
 				},

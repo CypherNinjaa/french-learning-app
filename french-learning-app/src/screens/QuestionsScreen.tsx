@@ -254,7 +254,7 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 						</View>
 					</View>
 					<Text style={styles.pointsText}>{question.points}pts</Text>
-				</View>{" "}
+				</View>
 				<View style={styles.optionsContainer}>
 					{options.map((option: string, index: number) => {
 						const isSelected = userAnswer === option;
@@ -818,7 +818,6 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 
 	return (
 		<SafeAreaView style={styles.container}>
-			{" "}
 			{/* Header */}
 			<View style={styles.header}>
 				<Text style={styles.headerTitle}>Questions Practice</Text>
@@ -942,7 +941,6 @@ export const QuestionsScreen: React.FC<QuestionsScreenProps> = ({
 				}
 				showsVerticalScrollIndicator={false}
 			>
-				{" "}
 				{filteredQuestions.length === 0 ? (
 					<View style={styles.emptyContainer}>
 						<Ionicons
