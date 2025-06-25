@@ -236,7 +236,6 @@ export const VocabularyManagement = () => {
 			setFormLoading(false);
 		}
 	};
-
 	const handleDelete = (vocab: Vocabulary) => {
 		Alert.alert(
 			"Delete Vocabulary",
@@ -248,10 +247,25 @@ export const VocabularyManagement = () => {
 					style: "destructive",
 					onPress: async () => {
 						try {
-							// Note: We should implement deleteVocabulary in the service
-							Alert.alert("Info", "Delete functionality will be implemented");
+							setLoading(true);
+							const result = await ContentManagementService.deleteVocabulary(
+								vocab.id
+							);
+							if (result.success) {
+								Alert.alert("Success", "Vocabulary deleted successfully");
+								// Refresh the vocabulary list
+								loadData();
+							} else {
+								Alert.alert(
+									"Error",
+									result.error || "Failed to delete vocabulary"
+								);
+							}
 						} catch (error) {
+							console.error("Delete vocabulary error:", error);
 							Alert.alert("Error", "Failed to delete vocabulary");
+						} finally {
+							setLoading(false);
 						}
 					},
 				},

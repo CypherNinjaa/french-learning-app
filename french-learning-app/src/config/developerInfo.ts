@@ -137,7 +137,7 @@ export const developerInfo: DeveloperInfo = {
       duration: "1",
       linesOfCode: "3500+",
       features: "7",
-      commits: "150+",
+      commits: "100+",
       testCases: "50+"
     },
     repository: "https://github.com/CypherNinjaa/french-learning-app",

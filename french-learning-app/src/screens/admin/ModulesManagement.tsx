@@ -104,8 +104,12 @@ export const ModulesManagement = () => {
 		setEditingModule(null);
 		setModalVisible(true);
 	};
-
 	const openEditModal = (module: Module) => {
+		// Ensure learning_objectives is always an array
+		const learningObjectives = Array.isArray(module.learning_objectives)
+			? module.learning_objectives
+			: [];
+
 		setFormData({
 			title: module.title,
 			description: module.description || "",
@@ -113,7 +117,7 @@ export const ModulesManagement = () => {
 			order_index: module.order_index,
 			estimated_duration_minutes: module.estimated_duration_minutes || 30,
 			difficulty_level: module.difficulty_level || "beginner",
-			learning_objectives: module.learning_objectives || [],
+			learning_objectives: learningObjectives,
 			is_active: module.is_active,
 		});
 		setEditingModule(module);
@@ -217,30 +221,46 @@ export const ModulesManagement = () => {
 			]
 		);
 	};
-
 	const addLearningObjective = () => {
-		setFormData((prev) => ({
-			...prev,
-			learning_objectives: [...prev.learning_objectives, ""],
-		}));
-	};
+		setFormData((prev) => {
+			// Ensure learning_objectives is always an array
+			const learningObjectives = Array.isArray(prev.learning_objectives)
+				? prev.learning_objectives
+				: [];
 
+			return {
+				...prev,
+				learning_objectives: [...learningObjectives, ""],
+			};
+		});
+	};
 	const updateLearningObjective = (index: number, value: string) => {
-		setFormData((prev) => ({
-			...prev,
-			learning_objectives: prev.learning_objectives.map((obj, i) =>
-				i === index ? value : obj
-			),
-		}));
-	};
+		setFormData((prev) => {
+			// Ensure learning_objectives is always an array
+			const learningObjectives = Array.isArray(prev.learning_objectives)
+				? prev.learning_objectives
+				: [];
 
+			return {
+				...prev,
+				learning_objectives: learningObjectives.map((obj, i) =>
+					i === index ? value : obj
+				),
+			};
+		});
+	};
 	const removeLearningObjective = (index: number) => {
-		setFormData((prev) => ({
-			...prev,
-			learning_objectives: prev.learning_objectives.filter(
-				(_, i) => i !== index
-			),
-		}));
+		setFormData((prev) => {
+			// Ensure learning_objectives is always an array
+			const learningObjectives = Array.isArray(prev.learning_objectives)
+				? prev.learning_objectives
+				: [];
+
+			return {
+				...prev,
+				learning_objectives: learningObjectives.filter((_, i) => i !== index),
+			};
+		});
 	};
 
 	useEffect(() => {
@@ -314,7 +334,8 @@ export const ModulesManagement = () => {
 						{module.learning_objectives.map(
 							(objective: string, index: number) => (
 								<Text key={index} style={styles.objective}>
-									• {objective}
+									{/* Bullet and objective text are both inside <Text> */}
+									{` b7 ${objective}`}
 								</Text>
 							)
 						)}
@@ -536,27 +557,28 @@ export const ModulesManagement = () => {
 								>
 									<Text style={styles.addButtonText}>+ Add</Text>
 								</TouchableOpacity>
-							</View>
-
-							{formData.learning_objectives.map((objective, index) => (
-								<View key={index} style={styles.objectiveInput}>
-									<TextInput
-										style={[styles.textInput, styles.flexInput]}
-										value={objective}
-										onChangeText={(text) =>
-											updateLearningObjective(index, text)
-										}
-										placeholder={`Learning objective ${index + 1}`}
-										placeholderTextColor={theme.colors.textSecondary}
-									/>
-									<TouchableOpacity
-										onPress={() => removeLearningObjective(index)}
-										style={styles.removeButton}
-									>
-										<Text style={styles.removeButtonText}>×</Text>
-									</TouchableOpacity>
-								</View>
-							))}
+							</View>{" "}
+							{/* Learning Objectives */}
+							{Array.isArray(formData.learning_objectives) &&
+								formData.learning_objectives.map((objective, index) => (
+									<View key={index} style={styles.objectiveInput}>
+										<TextInput
+											style={[styles.textInput, styles.flexInput]}
+											value={objective}
+											onChangeText={(text) =>
+												updateLearningObjective(index, text)
+											}
+											placeholder={`Learning objective ${index + 1}`}
+											placeholderTextColor={theme.colors.textSecondary}
+										/>
+										<TouchableOpacity
+											onPress={() => removeLearningObjective(index)}
+											style={styles.removeButton}
+										>
+											<Text style={styles.removeButtonText}>×</Text>
+										</TouchableOpacity>
+									</View>
+								))}
 						</View>
 					</ScrollView>
 				</View>

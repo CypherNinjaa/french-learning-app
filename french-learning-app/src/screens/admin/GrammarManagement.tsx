@@ -197,7 +197,6 @@ export const GrammarManagement = () => {
 			setFormLoading(false);
 		}
 	};
-
 	const handleDelete = (grammar: GrammarRule) => {
 		Alert.alert(
 			"Delete Grammar Rule",
@@ -209,10 +208,25 @@ export const GrammarManagement = () => {
 					style: "destructive",
 					onPress: async () => {
 						try {
-							// Note: We should implement deleteGrammarRule in the service
-							Alert.alert("Info", "Delete functionality will be implemented");
+							setLoading(true);
+							const result = await ContentManagementService.deleteGrammarRule(
+								grammar.id
+							);
+							if (result.success) {
+								Alert.alert("Success", "Grammar rule deleted successfully");
+								// Refresh the grammar rules list
+								loadData();
+							} else {
+								Alert.alert(
+									"Error",
+									result.error || "Failed to delete grammar rule"
+								);
+							}
 						} catch (error) {
+							console.error("Delete grammar rule error:", error);
 							Alert.alert("Error", "Failed to delete grammar rule");
+						} finally {
+							setLoading(false);
 						}
 					},
 				},
