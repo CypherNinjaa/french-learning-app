@@ -305,7 +305,7 @@ export const ModulesManagement = () => {
 						{module.difficulty_level}
 					</Text>
 				</View>
-			</View>{" "}
+			</View>
 			{module.learning_objectives &&
 				Array.isArray(module.learning_objectives) &&
 				module.learning_objectives.length > 0 && (
