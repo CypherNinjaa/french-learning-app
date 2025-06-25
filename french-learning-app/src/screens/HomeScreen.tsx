@@ -20,7 +20,6 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 	const { user, signOut, isAdmin } = useAuth();
 	const currentTheme = theme;
-
 	// Navigation helper function to handle both tab and stack navigation
 	const navigateToScreen = (screenName: string) => {
 		// For tab screens, navigate within the tab navigator
@@ -30,6 +29,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 				"Practice",
 				"Vocabulary",
 				"PronunciationTest",
+				"Questions",
 				"Profile",
 			].includes(screenName)
 		) {
@@ -194,17 +194,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 						</TouchableOpacity>
 						<TouchableOpacity
 							style={styles.quickActionCard}
-							onPress={() => navigateToScreen("Progress")}
+							onPress={() => navigateToScreen("Vocabulary")}
 						>
-							<Ionicons name="stats-chart" size={24} color="#4CAF50" />
-							<Text style={styles.quickActionText}>Progress</Text>
+							<Ionicons name="library" size={24} color="#9C27B0" />
+							<Text style={styles.quickActionText}>Vocabulary</Text>
 						</TouchableOpacity>
 						<TouchableOpacity
 							style={styles.quickActionCard}
-							onPress={() => navigateToScreen("ThemeSettings")}
+							onPress={() => navigateToScreen("Questions")}
 						>
-							<Ionicons name="settings" size={24} color="#FF9800" />
-							<Text style={styles.quickActionText}>Settings</Text>
+							<Ionicons name="help-circle" size={24} color="#FF5722" />
+							<Text style={styles.quickActionText}>Questions</Text>
 						</TouchableOpacity>
 					</View>
 				</View>
