@@ -143,9 +143,7 @@ export class ContentManagementService {
 					level:levels(*)
 				`)
 				.eq('is_active', true)
-				.order('order_index');
-
-			if (levelId) {
+				.order('order_index');			if (levelId) {
 				query = query.eq('level_id', levelId);
 			}
 
@@ -153,8 +151,16 @@ export class ContentManagementService {
 
 			if (error) throw error;
 
+			// Normalize learning_objectives to always be an array
+			const normalizedData = (data || []).map(module => ({
+				...module,
+				learning_objectives: Array.isArray(module.learning_objectives) 
+					? module.learning_objectives 
+					: []
+			}));
+
 			return {
-				data: data || [],
+				data: normalizedData,
 				error: null,
 				success: true,
 			};
