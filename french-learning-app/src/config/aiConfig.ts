@@ -1,6 +1,10 @@
 // AI Configuration
+import { getConfig } from './productionConfig';
+
+const config = getConfig();
+
 export const AI_CONFIG = {
-  GROQ_API_KEY: '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',
+  GROQ_API_KEY: config.groq.apiKey,
   
   // Rate limiting settings
   RATE_LIMITS: {

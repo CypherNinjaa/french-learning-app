@@ -393,19 +393,20 @@ export class SupabaseService {
 	}>> {
 		try {
 			const { data, error } = await supabase
-				.from('admin_dashboard_stats')
-				.select('*')
-				.single();
+				.rpc('get_admin_dashboard_stats');
 
 			if (error) throw error;
 
+			// The function returns an array, so get the first result
+			const stats = Array.isArray(data) ? data[0] : data;
+
 			return {
 				data: {
-					totalUsers: data.total_users || 0,
-					totalAdmins: data.total_admins || 0,
-					newUsersThisWeek: data.new_users_this_week || 0,
-					activeUsersToday: data.active_users_today || 0,
-					sessionsToday: data.sessions_today || 0,
+					totalUsers: stats.total_users || 0,
+					totalAdmins: stats.total_admins || 0,
+					newUsersThisWeek: stats.new_users_this_week || 0,
+					activeUsersToday: stats.active_users_today || 0,
+					sessionsToday: stats.sessions_today || 0,
 				},
 				error: null,
 				success: true,
