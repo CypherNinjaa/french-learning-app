@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 // Replace with your actual API or Supabase client
 import { supabase } from "../../services/supabase";
+import { FloatingActionButton } from "../../components/FloatingActionButton";
 
 interface PronunciationWord {
 	id: number;
@@ -229,6 +230,9 @@ export const PronunciationWordsManagement: React.FC = () => {
 					</View>
 				</View>
 			</Modal>
+
+			{/* Floating Action Button */}
+			<FloatingActionButton icon="add" onPress={() => setModalVisible(true)} />
 		</SafeAreaView>
 	);
 };
