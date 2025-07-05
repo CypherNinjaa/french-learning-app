@@ -1,5 +1,8 @@
 // Core TypeScript interfaces following the development rules
 
+// Export all learning platform types
+export * from './LearningTypes';
+
 export type UserLevel = "beginner" | "intermediate" | "advanced";
 export type UserRole = "user" | "admin" | "super_admin";
 

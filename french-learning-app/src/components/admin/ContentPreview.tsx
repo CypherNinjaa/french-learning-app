@@ -1,5 +1,5 @@
 // Content Preview Component - Stage 3.2
-// Provides preview functionality for lessons, vocabulary, grammar rules, and questions
+// Provides preview functionality for vocabulary and grammar rules
 
 import React from "react";
 import {
@@ -11,13 +11,13 @@ import {
 	Modal,
 } from "react-native";
 import { theme } from "../../constants/theme";
-import { Lesson, Vocabulary, GrammarRule, Question } from "../../types";
+import { Vocabulary, GrammarRule } from "../../types";
 
 interface ContentPreviewProps {
 	visible: boolean;
 	onClose: () => void;
-	contentType: "lesson" | "vocabulary" | "grammar" | "question";
-	content: Lesson | Vocabulary | GrammarRule | Question | null;
+	contentType: "vocabulary" | "grammar";
+	content: Vocabulary | GrammarRule | null;
 }
 
 export const ContentPreview: React.FC<ContentPreviewProps> = ({
@@ -27,42 +27,6 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
 	content,
 }) => {
 	if (!content) return null;
-
-	const renderLessonPreview = (lesson: Lesson) => (
-		<View style={styles.previewContent}>
-			<Text style={styles.previewTitle}>Lesson Preview</Text>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Title</Text>
-				<Text style={styles.sectionContent}>{lesson.title}</Text>
-			</View>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Description</Text>
-				<Text style={styles.sectionContent}>{lesson.description}</Text>
-			</View>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Type</Text>
-				<Text style={styles.sectionContent}>{lesson.lesson_type}</Text>
-			</View>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Duration</Text>
-				<Text style={styles.sectionContent}>
-					{lesson.estimated_time_minutes} minutes
-				</Text>
-			</View>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Difficulty</Text>
-				<Text style={styles.sectionContent}>{lesson.difficulty_level}</Text>
-			</View>
-			{lesson.content && (
-				<View style={styles.previewSection}>
-					<Text style={styles.sectionTitle}>Content</Text>
-					<Text style={styles.sectionContent}>
-						{JSON.stringify(lesson.content, null, 2)}
-					</Text>
-				</View>
-			)}
-		</View>
-	);
 
 	const renderVocabularyPreview = (vocabulary: Vocabulary) => (
 		<View style={styles.previewContent}>
@@ -146,54 +110,12 @@ export const ContentPreview: React.FC<ContentPreviewProps> = ({
 		</View>
 	);
 
-	const renderQuestionPreview = (question: Question) => (
-		<View style={styles.previewContent}>
-			<Text style={styles.previewTitle}>Question Preview</Text>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Type</Text>
-				<Text style={styles.sectionContent}>{question.question_type}</Text>
-			</View>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Question</Text>
-				<Text style={styles.sectionContent}>{question.question_text}</Text>
-			</View>
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Difficulty</Text>
-				<Text style={styles.sectionContent}>{question.difficulty_level}</Text>
-			</View>
-			{question.options && question.options.length > 0 && (
-				<View style={styles.previewSection}>
-					<Text style={styles.sectionTitle}>Options</Text>
-					{question.options.map((option: any, index: number) => (
-						<Text key={index} style={styles.optionText}>
-							{index + 1}. {option}
-						</Text>
-					))}
-				</View>
-			)}
-			<View style={styles.previewSection}>
-				<Text style={styles.sectionTitle}>Correct Answer</Text>
-				<Text style={styles.sectionContent}>{question.correct_answer}</Text>
-			</View>
-			{question.explanation && (
-				<View style={styles.previewSection}>
-					<Text style={styles.sectionTitle}>Explanation</Text>
-					<Text style={styles.sectionContent}>{question.explanation}</Text>
-				</View>
-			)}
-		</View>
-	);
-
 	const renderContent = () => {
 		switch (contentType) {
-			case "lesson":
-				return renderLessonPreview(content as Lesson);
 			case "vocabulary":
 				return renderVocabularyPreview(content as Vocabulary);
 			case "grammar":
 				return renderGrammarPreview(content as GrammarRule);
-			case "question":
-				return renderQuestionPreview(content as Question);
 			default:
 				return null;
 		}

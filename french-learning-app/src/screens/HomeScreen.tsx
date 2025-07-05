@@ -40,23 +40,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 		}
 	};
 
-	// Calculate dynamic learning progress similar to ProfileScreen
+	// Calculate dynamic learning progress based on available metrics
 	const calculateProgress = () => {
 		const totalPoints = user?.points || 0;
 		const streakDays = user?.streakDays || 0;
-		// Use real data if available, otherwise estimate from points
-		const lessonsCompleted =
-			user?.totalLessonsCompleted ?? Math.floor(totalPoints / 10);
 		const timeSpent = user?.totalTimeSpent ?? Math.floor(totalPoints / 2);
 
 		// Overall progress calculation (0-100%)
 		const pointsProgress = Math.min((totalPoints / 1000) * 100, 100);
-		const lessonsProgress = Math.min((lessonsCompleted / 50) * 100, 100);
 		const streakProgress = Math.min((streakDays / 30) * 100, 100);
 		const timeProgress = Math.min((timeSpent / 300) * 100, 100);
 
 		const overallProgress =
-			(pointsProgress + lessonsProgress + streakProgress + timeProgress) / 4;
+			(pointsProgress + streakProgress + timeProgress) / 3;
 		return Math.round(overallProgress);
 	};
 
