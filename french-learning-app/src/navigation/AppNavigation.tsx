@@ -12,15 +12,9 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { ProgressScreen } from "../screens/ProgressScreen";
 import { AdminDashboardScreen } from "../screens/AdminDashboardScreen";
 import { ContentManagementDashboard } from "../screens/admin/ContentManagementDashboard";
-import { LevelsManagement } from "../screens/admin/LevelsManagement";
-import { ModulesManagement } from "../screens/admin/ModulesManagement";
-import { LessonsManagement } from "../screens/admin/LessonsManagement";
 import { VocabularyManagement } from "../screens/admin/VocabularyManagement";
 import { GrammarManagement } from "../screens/admin/GrammarManagement";
-import { QuestionsManagement } from "../screens/admin/QuestionsManagement";
 import { PronunciationWordsManagement } from "../screens/admin/PronunciationWordsManagement";
-import { LessonListScreen } from "../screens/LessonListScreen";
-import { LessonScreen } from "../screens/LessonScreen";
 import { PronunciationTestScreen } from "../screens/PronunciationTestScreen";
 import { AITestScreen } from "../screens/AITestScreen";
 import { PersonalizedLearningScreen } from "../screens/PersonalizedLearningScreen";
@@ -28,8 +22,6 @@ import { ConversationalAIScreen } from "../screens/ConversationalAIScreen";
 import { ConversationalAITestScreen } from "../screens/ConversationalAITestScreen";
 import { ThemeSettingsScreen } from "../screens/ThemeSettingsScreen";
 import { GamificationScreen } from "../screens/GamificationScreen";
-import { LevelsScreen } from "../screens/LevelsScreen";
-import { ModulesScreen } from "../screens/ModulesScreen";
 import { VocabularyScreen } from "../screens/VocabularyScreen";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { theme } from "../constants/theme";
@@ -38,6 +30,13 @@ import { SplashScreen } from "../screens/SplashScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { TabNavigation } from "./TabNavigation";
 import { VocabularyPracticeScreen } from "../screens/VocabularyPracticeScreen";
+import { BooksScreen } from "../screens/BooksScreen";
+import { BookDetailScreen } from "../screens/BookDetailScreen";
+import { LessonDetailScreen } from "../screens/LessonDetailScreen";
+import { LessonTestScreen } from "../screens/LessonTestScreen";
+import { BookManagementScreen } from "../screens/admin/BookManagementScreen";
+import { LessonManagementScreen } from "../screens/admin/LessonManagementScreen";
+import { TestManagementScreen } from "../screens/admin/TestManagementScreen";
 
 // --- Navigation Param List Types ---
 // Auth stack for login/registration flows
@@ -56,21 +55,23 @@ export type AppStackParamList = {
 	Profile: undefined;
 	Progress: undefined;
 
+	// Learning System
+	Books: undefined;
+	BookDetail: { bookId: number };
+	LessonDetail: { lessonId: number; bookId: number };
+	LessonTest: { lessonId: number; bookId: number };
+
 	// Admin & Content
 	AdminDashboard: undefined;
 	ContentManagementDashboard: undefined;
-	LevelsManagement: undefined;
-	ModulesManagement: undefined;
-	LessonsManagement: undefined;
+	BookManagement: undefined;
+	LessonManagement: { bookId: number; createNew?: boolean };
+	TestManagement: { lessonId?: number };
 	VocabularyManagement: undefined;
 	GrammarManagement: undefined;
-	QuestionsManagement: undefined;
 	PronunciationWordsManagement: undefined;
-	// Learning & Practice
-	Levels: undefined;
-	Modules: { levelId: number; levelName: string; userId: string };
-	LessonList: { moduleId: number; moduleName: string; userId: string };
-	Lesson: { lessonId: number; lessonTitle: string; userId: string };
+
+	// Vocabulary & Practice
 	Vocabulary: undefined;
 	VocabularyPractice: { words: any[]; userId: string };
 	PronunciationTest: undefined;
@@ -88,10 +89,6 @@ export type AppStackParamList = {
 
 	// Main Tabs
 	MainTabs: undefined;
-
-	// Fallback
-	// Removed NotFound screen
-	// Add more screens as they are created
 };
 
 const AuthStack = createStackNavigator<AuthStackParamList>();
@@ -130,18 +127,17 @@ const AppNavigator: React.FC = () => {
 				name="ContentManagementDashboard"
 				component={ContentManagementDashboard}
 			/>
-			<AppStack.Screen name="LevelsManagement" component={LevelsManagement} />
-			<AppStack.Screen name="ModulesManagement" component={ModulesManagement} />
-			<AppStack.Screen name="LessonsManagement" component={LessonsManagement} />
+			<AppStack.Screen name="BookManagement" component={BookManagementScreen} />
+			<AppStack.Screen
+				name="LessonManagement"
+				component={LessonManagementScreen}
+			/>
+			<AppStack.Screen name="TestManagement" component={TestManagementScreen} />
 			<AppStack.Screen
 				name="VocabularyManagement"
 				component={VocabularyManagement}
 			/>
 			<AppStack.Screen name="GrammarManagement" component={GrammarManagement} />
-			<AppStack.Screen
-				name="QuestionsManagement"
-				component={QuestionsManagement}
-			/>
 			<AppStack.Screen
 				name="PronunciationWordsManagement"
 				component={PronunciationWordsManagement}
@@ -153,12 +149,11 @@ const AppNavigator: React.FC = () => {
 				name="PersonalizedLearning"
 				component={PersonalizedLearningScreen}
 			/>
-			<AppStack.Screen name="Levels" component={LevelsScreen} />
-			<AppStack.Screen name="Modules" component={ModulesScreen} />
 			<AppStack.Screen name="Gamification" component={GamificationScreen} />
 			{/* Detail screens accessible from anywhere */}
-			<AppStack.Screen name="Lesson" component={LessonScreen} />
-			<AppStack.Screen name="LessonList" component={LessonListScreen} />
+			<AppStack.Screen name="BookDetail" component={BookDetailScreen} />
+			<AppStack.Screen name="LessonDetail" component={LessonDetailScreen} />
+			<AppStack.Screen name="LessonTest" component={LessonTestScreen} />
 			<AppStack.Screen
 				name="PronunciationTest"
 				component={PronunciationTestScreen}
@@ -176,7 +171,6 @@ const AppNavigator: React.FC = () => {
 				name="VocabularyPractice"
 				component={VocabularyPracticeScreen}
 			/>
-			{/* Add other detail screens as needed */}
 		</AppStack.Navigator>
 	);
 };

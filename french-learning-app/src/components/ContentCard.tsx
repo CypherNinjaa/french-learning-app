@@ -15,19 +15,12 @@ import {
 	getColorForContentType,
 	createShadowStyle,
 } from "../constants/theme";
-import {
-	Lesson,
-	Module,
-	Vocabulary,
-	GrammarRule,
-	DifficultyLevel,
-	LessonType,
-} from "../types";
+import { Vocabulary, GrammarRule, DifficultyLevel } from "../types";
 
 interface ContentCardProps {
 	// Content data
-	content: Lesson | Module | Vocabulary | GrammarRule;
-	contentType: "lesson" | "module" | "vocabulary" | "grammar";
+	content: Vocabulary | GrammarRule;
+	contentType: "vocabulary" | "grammar";
 
 	// Interaction
 	onPress?: () => void;
@@ -50,8 +43,6 @@ interface ContentCardMetadata {
 	subtitle?: string;
 	description?: string;
 	difficulty?: DifficultyLevel;
-	lessonType?: LessonType;
-	duration?: number;
 	color: string;
 	icon?: string;
 }
@@ -75,30 +66,6 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 	// Extract metadata based on content type
 	const getContentMetadata = (): ContentCardMetadata => {
 		switch (contentType) {
-			case "lesson":
-				const lesson = content as Lesson;
-				return {
-					title: lesson.title,
-					subtitle: `${lesson.lesson_type} • ${
-						lesson.estimated_time_minutes || 0
-					} min`,
-					description: lesson.description,
-					difficulty: lesson.difficulty_level,
-					lessonType: lesson.lesson_type,
-					duration: lesson.estimated_time_minutes,
-					color: getColorForContentType(lesson.lesson_type),
-				};
-
-			case "module":
-				const module = content as Module;
-				return {
-					title: module.title,
-					subtitle: `${module.estimated_duration_minutes || 0} min`,
-					description: module.description,
-					difficulty: module.difficulty_level,
-					color: getColorForDifficulty(module.difficulty_level || "beginner"),
-				};
-
 			case "vocabulary":
 				const vocab = content as Vocabulary;
 				return {
@@ -256,9 +223,6 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 						<Text style={styles.cardFooterText}>
 							{contentType.charAt(0).toUpperCase() + contentType.slice(1)}
 						</Text>
-						{metadata.duration && (
-							<Text style={styles.cardFooterText}>{metadata.duration} min</Text>
-						)}
 					</View>
 				)}
 			</View>
