@@ -101,7 +101,7 @@ export const developerInfo: DeveloperInfo = {
       rollNumber: "A45304824010"
     },
     {
-      name: "Harshraj Shrivastav, Nikhil Anand and Sushant Mishra", // Replace with teammate's name
+      name: "Harsh raj Shrivastav, Nikhil Anand and Sushant Kumar", // Replace with teammate's name
       role: "Backend Developer & Database Architect",
       details: "Database Design, API Development, Authentication Systems",
       skills: ["Supabase", "PostgreSQL", "API Design", "Authentication", "Database Optimization"],
