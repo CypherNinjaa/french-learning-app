@@ -106,20 +106,16 @@ export const ProfileScreen = ({ navigation }: any) => {
 	const calculateProgress = () => {
 		const totalPoints = user?.points || 0;
 		const streakDays = user?.streakDays || 0;
-		// Use real data if available, otherwise estimate from points
-		const lessonsCompleted =
-			user?.totalLessonsCompleted ?? Math.floor(totalPoints / 10);
 		const timeSpent = user?.totalTimeSpent ?? Math.floor(totalPoints / 2);
 
 		// Overall progress calculation (0-100%)
-		// Based on multiple factors: points, lessons, streak, time
+		// Based on multiple factors: points, streak, time
 		const pointsProgress = Math.min((totalPoints / 1000) * 100, 100); // Max 1000 points = 100%
-		const lessonsProgress = Math.min((lessonsCompleted / 50) * 100, 100); // Max 50 lessons = 100%
 		const streakProgress = Math.min((streakDays / 30) * 100, 100); // Max 30 days = 100%
 		const timeProgress = Math.min((timeSpent / 300) * 100, 100); // Max 300 minutes = 100%
 
 		const overallProgress =
-			(pointsProgress + lessonsProgress + streakProgress + timeProgress) / 4;
+			(pointsProgress + streakProgress + timeProgress) / 3;
 
 		// Weekly goals (5 different goals) - adaptive based on user level
 		const isBeginnerGoals = totalPoints < 100;
@@ -165,9 +161,9 @@ export const ProfileScreen = ({ navigation }: any) => {
 						target: "3-day streak",
 					},
 					{
-						name: "Lesson Master",
-						completed: lessonsCompleted >= 5,
-						target: "Complete 5 lessons",
+						name: "Practice Time",
+						completed: timeSpent >= 30,
+						target: "30+ minutes practice",
 					},
 					{
 						name: "Time Investment",
@@ -185,7 +181,6 @@ export const ProfileScreen = ({ navigation }: any) => {
 			weeklyGoals: completedGoals,
 			totalGoals: weeklyGoals.length,
 			goals: weeklyGoals,
-			lessonsCompleted,
 			timeSpent,
 			isBeginnerMode: isBeginnerGoals,
 		};
@@ -642,9 +637,11 @@ export const ProfileScreen = ({ navigation }: any) => {
 							{progress.overall}% Complete
 						</Text>
 						<Text style={styles.progressSubtext}>
-							{`${user?.points || 0} points • ${
-								progress.lessonsCompleted
-							} lessons • ${user?.streakDays || 0} day streak`}
+							{`${user?.points || 0} points • ${Math.floor(
+								(progress.timeSpent || 0) / 60
+							)}h ${(progress.timeSpent || 0) % 60}m • ${
+								user?.streakDays || 0
+							} day streak`}
 						</Text>
 					</View>
 					<TouchableOpacity

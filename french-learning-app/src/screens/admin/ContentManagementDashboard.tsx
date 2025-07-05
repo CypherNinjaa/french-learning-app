@@ -10,21 +10,17 @@ import {
 	TouchableOpacity,
 	Alert,
 	RefreshControl,
-	Modal,
 	TextInput,
 	ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { ContentManagementService } from "../../services/contentManagementService";
-import { BulkContentManager } from "../../utils/bulkContentManager";
 import { theme } from "../../constants/theme";
-import { Level, Module, Lesson, Vocabulary, GrammarRule } from "../../types";
+import { Vocabulary, GrammarRule } from "../../types";
 import { supabase } from "../../services/supabase";
+import { FloatingActionButton } from "../../components/FloatingActionButton";
 
 interface ContentStats {
-	levels: number;
-	modules: number;
-	lessons: number;
 	vocabulary: number;
 	grammarRules: number;
 	questions: number;
@@ -37,7 +33,7 @@ interface Stats extends ContentStats {
 
 interface RecentActivity {
 	id: string;
-	type: "level" | "module" | "lesson" | "vocabulary" | "grammar" | "question";
+	type: "vocabulary" | "grammar" | "question";
 	action: "created" | "updated" | "deleted";
 	title: string;
 	description: string;
@@ -50,15 +46,7 @@ export const ContentManagementDashboard = () => {
 	const navigation = useNavigation();
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
-	const [importModalVisible, setImportModalVisible] = useState(false);
-	const [exportModalVisible, setExportModalVisible] = useState(false);
-	const [bulkLoading, setBulkLoading] = useState(false);
-	const [importData, setImportData] = useState("");
-	const [exportData, setExportData] = useState("");
 	const [stats, setStats] = useState<Stats>({
-		levels: 0,
-		modules: 0,
-		lessons: 0,
 		vocabulary: 0,
 		grammarRules: 0,
 		questions: 0,
@@ -67,81 +55,32 @@ export const ContentManagementDashboard = () => {
 	const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
 	const loadRecentActivity = async (
-		levels?: Level[],
-		modules?: Module[],
-		lessons?: Lesson[],
 		vocabulary?: Vocabulary[],
 		grammarRules?: GrammarRule[]
 	) => {
 		try {
 			const activities: RecentActivity[] = [];
 
-			// Get recent levels
-			if (levels) {
-				levels.slice(0, 2).forEach((level) => {
-					activities.push({
-						id: `level-${level.id}`,
-						type: "level",
-						action: "created",
-						title: `Level "${level.name}" created`,
-						description: level.description || "New learning level added",
-						timestamp: level.created_at,
-						icon: "📚",
-						color: "#FF6B6B",
-					});
-				});
-			}
-
-			// Get recent modules
-			if (modules) {
-				modules.slice(0, 2).forEach((module) => {
-					activities.push({
-						id: `module-${module.id}`,
-						type: "module",
-						action: "created",
-						title: `Module "${module.title}" created`,
-						description: module.description || "New module added",
-						timestamp: module.created_at,
-						icon: "📖",
-						color: "#4ECDC4",
-					});
-				});
-			}
-
-			// Get recent lessons
-			if (lessons) {
-				lessons.slice(0, 2).forEach((lesson) => {
-					activities.push({
-						id: `lesson-${lesson.id}`,
-						type: "lesson",
-						action: "created",
-						title: `Lesson "${lesson.title}" created`,
-						description: lesson.description || "New lesson added",
-						timestamp: lesson.created_at,
-						icon: "🎯",
-						color: "#45B7D1",
-					});
-				});
-			}
-
 			// Get recent vocabulary
 			if (vocabulary && vocabulary.length > 0) {
-				const recentVocab = vocabulary.slice(0, 1);
-				activities.push({
-					id: `vocab-${recentVocab[0].id}`,
-					type: "vocabulary",
-					action: "created",
-					title: `${vocabulary.length} vocabulary words added`,
-					description: `Latest: "${recentVocab[0].french_word}" - ${recentVocab[0].english_translation}`,
-					timestamp: recentVocab[0].created_at,
-					icon: "📝",
-					color: "#96CEB4",
+				const recentVocab = vocabulary.slice(0, 3);
+				recentVocab.forEach((vocab) => {
+					activities.push({
+						id: `vocab-${vocab.id}`,
+						type: "vocabulary",
+						action: "created",
+						title: `Vocabulary "${vocab.french_word}" added`,
+						description: `${vocab.french_word} - ${vocab.english_translation}`,
+						timestamp: vocab.created_at,
+						icon: "📝",
+						color: "#96CEB4",
+					});
 				});
 			}
 
 			// Get recent grammar rules
-			if (grammarRules) {
-				grammarRules.slice(0, 1).forEach((rule) => {
+			if (grammarRules && grammarRules.length > 0) {
+				grammarRules.slice(0, 2).forEach((rule) => {
 					activities.push({
 						id: `grammar-${rule.id}`,
 						type: "grammar",
@@ -171,21 +110,9 @@ export const ContentManagementDashboard = () => {
 	const loadStats = async () => {
 		try {
 			// Load content statistics
-			const [
-				levelsRes,
-				modulesRes,
-				lessonsRes,
-				vocabRes,
-				grammarRes,
-				questionsRes,
-				pronWordsRes,
-			] = await Promise.all([
-				ContentManagementService.getLevels(),
-				ContentManagementService.getModules(),
-				ContentManagementService.getLessons(),
+			const [vocabRes, grammarRes, pronWordsRes] = await Promise.all([
 				ContentManagementService.getVocabulary({ limit: 1000 }),
 				ContentManagementService.getGrammarRules(),
-				ContentManagementService.getQuestions(),
 				// New: fetch pronunciation words count using correct supabase client
 				supabase
 					.from("pronunciation_words")
@@ -193,18 +120,12 @@ export const ContentManagementDashboard = () => {
 			]);
 
 			setStats({
-				levels: levelsRes.data?.length || 0,
-				modules: modulesRes.data?.length || 0,
-				lessons: lessonsRes.data?.length || 0,
 				vocabulary: vocabRes.data?.length || 0,
 				grammarRules: grammarRes.data?.length || 0,
-				questions: questionsRes.data?.length || 0,
+				questions: 0, // Questions removed with lesson system
 				pronunciationWords: pronWordsRes.count || 0,
 			}); // Load recent activity
 			await loadRecentActivity(
-				levelsRes.data || undefined,
-				modulesRes.data || undefined,
-				lessonsRes.data || undefined,
 				vocabRes.data || undefined,
 				grammarRes.data || undefined
 			);
@@ -224,55 +145,6 @@ export const ContentManagementDashboard = () => {
 	useEffect(() => {
 		loadStats();
 	}, []);
-
-	// Bulk Import/Export Functions
-	const handleBulkImport = async () => {
-		if (!importData.trim()) {
-			Alert.alert("Error", "Please enter import data");
-			return;
-		}
-
-		setBulkLoading(true);
-		try {
-			const result = await BulkContentManager.importFromJSON(importData);
-			if (result.success) {
-				Alert.alert("Success", "Content imported successfully!");
-				setImportModalVisible(false);
-				setImportData("");
-				await loadStats();
-			} else {
-				Alert.alert("Import Error", result.error || "Failed to import content");
-			}
-		} catch (error) {
-			console.error("Import error:", error);
-			Alert.alert("Error", "Failed to import content");
-		} finally {
-			setBulkLoading(false);
-		}
-	};
-
-	const handleBulkExport = async () => {
-		setBulkLoading(true);
-		try {
-			const result = await BulkContentManager.exportToJSON();
-			if (result.success && result.data) {
-				setExportData(result.data);
-				setExportModalVisible(true);
-			} else {
-				Alert.alert("Export Error", result.error || "Failed to export content");
-			}
-		} catch (error) {
-			console.error("Export error:", error);
-			Alert.alert("Error", "Failed to export content");
-		} finally {
-			setBulkLoading(false);
-		}
-	};
-	const showImportTemplate = () => {
-		const template = BulkContentManager.getImportTemplateJSON();
-		setImportData(template);
-		setImportModalVisible(true);
-	};
 
 	const getRelativeTime = (timestamp: string) => {
 		const now = new Date();
@@ -386,27 +258,6 @@ export const ContentManagementDashboard = () => {
 				</View>
 				<View style={styles.statsGrid}>
 					<StatCard
-						title="Learning Levels"
-						count={stats.levels}
-						color="#FF6B6B"
-						icon="📚"
-						onPress={() => navigation.navigate("LevelsManagement" as never)}
-					/>
-					<StatCard
-						title="Modules"
-						count={stats.modules}
-						color="#4ECDC4"
-						icon="📖"
-						onPress={() => navigation.navigate("ModulesManagement" as never)}
-					/>
-					<StatCard
-						title="Lessons"
-						count={stats.lessons}
-						color="#45B7D1"
-						icon="🎯"
-						onPress={() => navigation.navigate("LessonsManagement" as never)}
-					/>
-					<StatCard
 						title="Vocabulary"
 						count={stats.vocabulary}
 						color="#96CEB4"
@@ -446,29 +297,9 @@ export const ContentManagementDashboard = () => {
 						Manage your content efficiently
 					</Text>
 				</View>
-				<View style={styles.actionsContainer}>
-					<ActionCard
-						title="Bulk Import"
-						description="Import content from JSON files"
-						icon="📂"
-						color="#FFEAA7"
-						onPress={() => setImportModalVisible(true)}
-					/>
-					<ActionCard
-						title="Bulk Export"
-						description="Export all content to JSON"
-						icon="💾"
-						color="#DDA0DD"
-						onPress={handleBulkExport}
-					/>
-					<ActionCard
-						title="Import Template"
-						description="Get a template for bulk import"
-						icon="📋"
-						color="#A0E7E5"
-						onPress={showImportTemplate}
-					/>
-				</View>
+				<Text style={styles.placeholderText}>
+					Quick actions for content management will be available here
+				</Text>
 			</View>
 			{/* Recent Activity */}
 			<View style={styles.section}>
@@ -513,69 +344,10 @@ export const ContentManagementDashboard = () => {
 					)}
 				</View>
 			</View>
-			{/* Import Modal */}
-			<Modal
-				visible={importModalVisible}
-				animationType="slide"
-				onRequestClose={() => setImportModalVisible(false)}
-			>
-				<View style={styles.modalContainer}>
-					<Text style={styles.modalTitle}>Bulk Import Content</Text>
-					<TextInput
-						style={styles.textInput}
-						multiline
-						placeholder="Paste your JSON data here"
-						value={importData}
-						onChangeText={setImportData}
-					/>
-					<View style={styles.modalActions}>
-						<TouchableOpacity
-							style={styles.modalButton}
-							onPress={handleBulkImport}
-						>
-							<Text style={styles.modalButtonText}>
-								{bulkLoading ? "Importing..." : "Import Data"}
-							</Text>
-						</TouchableOpacity>
-						<TouchableOpacity
-							style={styles.modalButton}
-							onPress={showImportTemplate}
-						>
-							<Text style={styles.modalButtonText}>Use Import Template</Text>
-						</TouchableOpacity>
-					</View>
-					<TouchableOpacity
-						style={styles.modalCloseButton}
-						onPress={() => setImportModalVisible(false)}
-					>
-						<Text style={styles.modalCloseButtonText}>Close</Text>
-					</TouchableOpacity>
-				</View>
-			</Modal>
-			{/* Export Modal */}
-			<Modal
-				visible={exportModalVisible}
-				animationType="slide"
-				onRequestClose={() => setExportModalVisible(false)}
-			>
-				<View style={styles.modalContainer}>
-					<Text style={styles.modalTitle}>Export Content Data</Text>
-					<ScrollView style={styles.exportDataContainer}>
-						<Text style={styles.exportData}>{exportData}</Text>
-					</ScrollView>
-					<View style={styles.modalActions}>
-						<TouchableOpacity
-							style={styles.modalButton}
-							onPress={() => {
-								setExportModalVisible(false);
-								setExportData("");
-							}}
-						>
-							<Text style={styles.modalButtonText}>Close</Text>
-						</TouchableOpacity>
-					</View>
-				</View>
-			</Modal>
+			<FloatingActionButton
+				icon="add"
+				onPress={() => navigation.navigate("BookManagement" as never)}
+			/>
 		</ScrollView>
 	);
 };
@@ -624,8 +396,14 @@ const styles = StyleSheet.create({
 		marginBottom: theme.spacing.xs,
 	},
 	sectionSubtitle: {
-		fontSize: 14,
+		fontSize: theme.typography.caption.fontSize,
 		color: theme.colors.textSecondary,
+	},
+	placeholderText: {
+		fontSize: theme.typography.body.fontSize,
+		color: theme.colors.textSecondary,
+		textAlign: "center",
+		marginVertical: theme.spacing.lg,
 		fontStyle: "italic",
 	},
 	statsGrid: {
@@ -850,5 +628,10 @@ const styles = StyleSheet.create({
 	exportData: {
 		fontSize: 14,
 		color: theme.colors.text,
+	},
+	fab: {
+		position: "absolute",
+		bottom: 16,
+		right: 16,
 	},
 });

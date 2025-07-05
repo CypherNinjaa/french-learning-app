@@ -18,6 +18,7 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import { ContentManagementService } from "../../services/contentManagementService";
 import { theme } from "../../constants/theme";
+import { FloatingActionButton } from "../../components/FloatingActionButton";
 import {
 	Vocabulary,
 	CreateVocabularyDto,
@@ -758,6 +759,9 @@ export const VocabularyManagement = () => {
 					</ScrollView>
 				</View>
 			</Modal>
+
+			{/* Floating Action Button */}
+			<FloatingActionButton icon="add" onPress={openCreateModal} />
 		</View>
 	);
 };
