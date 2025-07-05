@@ -23,7 +23,8 @@
 				"backgroundColor": "#ffffff"
 			},
 			"package": "com.yourcompany.frenchlearningapp",
-			"edgeToEdgeEnabled": true
+			"edgeToEdgeEnabled": true,
+			"permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
 		},
 		"web": {
 			"favicon": "./assets/favicon.png"

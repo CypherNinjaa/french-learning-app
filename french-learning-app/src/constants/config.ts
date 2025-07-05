@@ -1,11 +1,14 @@
 // Environment configuration
 // This file should be copied to .env and filled with actual values
 
+import { getConfig } from '../config/productionConfig';
+
+const config = getConfig();
+
 // Supabase Configuration
 export const supabaseConfig = {
-	url: process.env.EXPO_PUBLIC_SUPABASE_URL || "YOUR_SUPABASE_URL",
-	anonKey:
-		process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY",
+	url: config.supabase.url,
+	anonKey: config.supabase.anonKey,
 };
 
 // App Configuration

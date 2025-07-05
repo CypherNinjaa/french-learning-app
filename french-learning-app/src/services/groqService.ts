@@ -485,11 +485,14 @@ Return an array of ${count} questions in this exact JSON format.`,
   }
 }
 
+// Import the AI config
+import { AI_CONFIG } from '../config/aiConfig';
+
 // Create and export singleton instance
-const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+const groqApiKey = AI_CONFIG.GROQ_API_KEY;
 
 if (!groqApiKey) {
-  throw new Error('EXPO_PUBLIC_GROQ_API_KEY is not defined in environment variables');
+  throw new Error('GROQ_API_KEY is not defined in AI config');
 }
 
 const groqService = new GroqAIService(groqApiKey);
