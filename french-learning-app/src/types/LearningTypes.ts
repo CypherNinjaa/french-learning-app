@@ -141,7 +141,8 @@ export interface LessonTest {
   created_at: string;
   updated_at: string;
   
-  // Computed fields
+  // Computed fields (from joins)
+  lesson?: LearningLesson;
   questions?: TestQuestion[];
   user_best_attempt?: TestAttempt;
   attempts_remaining?: number;
@@ -352,6 +353,8 @@ export interface CreateLessonDto {
   passing_percentage?: number;
   max_attempts?: number;
   learning_objectives?: string[];
+  is_published?: boolean;
+  is_active?: boolean;
 }
 
 export interface UpdateLessonDto extends Partial<CreateLessonDto> {

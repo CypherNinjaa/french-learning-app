@@ -95,37 +95,83 @@ export const LessonManagementScreen: React.FC<LessonManagementScreenProps> = ({
 
 	const loadData = async () => {
 		try {
+			console.log("🔄 [LessonManagementScreen] Loading data...");
 			setLoading(true);
 
 			// Load book info
+			console.log(
+				"📚 [LessonManagementScreen] Loading book info for bookId:",
+				bookId
+			);
 			const bookResponse = await LearningService.getBook(bookId);
+			console.log(
+				"📚 [LessonManagementScreen] Book response:",
+				JSON.stringify(bookResponse, null, 2)
+			);
+
 			if (bookResponse.success && bookResponse.data) {
 				setBook(bookResponse.data);
 				setFormData((prev) => ({
 					...prev,
 					difficulty_level: bookResponse.data?.difficulty_level || "beginner",
 				}));
+				console.log(
+					"✅ [LessonManagementScreen] Book loaded successfully:",
+					bookResponse.data.title
+				);
+			} else {
+				console.error(
+					"❌ [LessonManagementScreen] Failed to load book:",
+					bookResponse.error
+				);
 			}
 
 			// Load lessons for this book
-			const lessonsResponse = await LearningService.getLessonsForBook(bookId);
+			console.log("📝 [LessonManagementScreen] Loading lessons for book...");
+			const lessonsResponse = await LearningService.getAllLessonsForBook(
+				bookId
+			);
+			console.log(
+				"📝 [LessonManagementScreen] Lessons response:",
+				JSON.stringify(lessonsResponse, null, 2)
+			);
+
 			if (lessonsResponse.success && lessonsResponse.data) {
 				setLessons(lessonsResponse.data);
+				console.log(
+					`✅ [LessonManagementScreen] Loaded ${lessonsResponse.data.length} lessons`
+				);
+				lessonsResponse.data.forEach((lesson, index) => {
+					console.log(`  ${index + 1}. ${lesson.title} (ID: ${lesson.id})`);
+				});
+			} else {
+				console.error(
+					"❌ [LessonManagementScreen] Failed to load lessons:",
+					lessonsResponse.error
+				);
 			}
 		} catch (error) {
-			console.error("Error loading data:", error);
+			console.error("❌ [LessonManagementScreen] Error loading data:", error);
 			Alert.alert("Error", "Failed to load data. Please try again.");
 		} finally {
 			setLoading(false);
+			console.log("🔄 [LessonManagementScreen] Data loading completed");
 		}
 	};
 
 	const handleCreateLesson = async () => {
 		try {
+			console.log("🔍 [LessonManagementScreen] Starting lesson creation...");
+
 			if (!formData.title.trim()) {
 				Alert.alert("Error", "Please enter a lesson title.");
 				return;
 			}
+
+			console.log(
+				"📝 [LessonManagementScreen] Form data:",
+				JSON.stringify(formData, null, 2)
+			);
 
 			// Convert string data to proper formats
 			const vocabularyArray = formData.vocabulary_words
@@ -137,6 +183,15 @@ export const LessonManagementScreen: React.FC<LessonManagementScreenProps> = ({
 				.split("\n")
 				.map((obj) => obj.trim())
 				.filter((obj) => obj.length > 0);
+
+			console.log(
+				"📚 [LessonManagementScreen] Processed vocabulary:",
+				vocabularyArray
+			);
+			console.log(
+				"🎯 [LessonManagementScreen] Processed objectives:",
+				objectivesArray
+			);
 
 			// Create structured content
 			const structuredContent = {
@@ -161,6 +216,11 @@ export const LessonManagementScreen: React.FC<LessonManagementScreenProps> = ({
 				key_points: objectivesArray,
 			};
 
+			console.log(
+				"📄 [LessonManagementScreen] Structured content:",
+				JSON.stringify(structuredContent, null, 2)
+			);
+
 			const createData: CreateLessonDto = {
 				book_id: formData.book_id,
 				title: formData.title,
@@ -174,17 +234,36 @@ export const LessonManagementScreen: React.FC<LessonManagementScreenProps> = ({
 				order_index: lessons.length + 1,
 			};
 
+			console.log(
+				"🚀 [LessonManagementScreen] Sending create data to service:",
+				JSON.stringify(createData, null, 2)
+			);
+
 			const response = await LearningService.createLesson(createData);
+
+			console.log(
+				"📮 [LessonManagementScreen] Service response:",
+				JSON.stringify(response, null, 2)
+			);
+
 			if (response.success) {
+				console.log("✅ [LessonManagementScreen] Lesson created successfully!");
 				Alert.alert("Success", "Lesson created successfully!");
 				setShowModal(false);
 				resetForm();
-				loadData();
+				await loadData(); // Make sure to await this
 			} else {
+				console.error(
+					"❌ [LessonManagementScreen] Service returned error:",
+					response.error
+				);
 				Alert.alert("Error", response.error || "Failed to create lesson");
 			}
 		} catch (error) {
-			console.error("Error creating lesson:", error);
+			console.error(
+				"❌ [LessonManagementScreen] Unexpected error creating lesson:",
+				error
+			);
 			Alert.alert("Error", "Failed to create lesson. Please try again.");
 		}
 	};
