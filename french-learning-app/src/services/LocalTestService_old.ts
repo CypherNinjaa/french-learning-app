@@ -4,6 +4,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TestQuestion, TestAttempt, LessonTest } from '../types/LearningTypes';
 
+import { LearningService } from './LearningService';
+
+
 export interface LocalTestAttempt {
   id: string;
   userId: string;
@@ -63,7 +66,9 @@ export class LocalTestService {
         return true;
       }
       
-      return progressData.unlocked;
+      // Check if the lesson was unlocked (has unlockedAt timestamp)
+      return !!progressData.unlockedAt;
+
     } catch (error) {
       console.error('Error checking lesson unlock status:', error);
       return false;
@@ -82,13 +87,17 @@ export class LocalTestService {
       
       // Update next lesson as unlocked
       allProgress[nextLessonId] = {
+
+        userId,
         lessonId: nextLessonId,
-        unlocked: true,
-        completed: false,
+        bookId: 1, // Default book ID
+        status: 'not_started',
         testPassed: false,
         bestScore: 0,
-        attempts: 0,
-        lastAccessed: Date.now(),
+        totalAttempts: 0,
+        unlockedAt: new Date().toISOString(),
+        lastAccessedAt: new Date().toISOString(),
+
       };
 
       await this.saveAllLessonProgress(userId, allProgress);
@@ -113,13 +122,17 @@ export class LocalTestService {
       
       // Unlock first lesson
       allProgress[1] = {
+
+        userId,
         lessonId: 1,
-        unlocked: true,
-        completed: false,
+        bookId,
+        status: 'not_started',
         testPassed: false,
         bestScore: 0,
-        attempts: 0,
-        lastAccessed: Date.now(),
+        totalAttempts: 0,
+        unlockedAt: new Date().toISOString(),
+        lastAccessedAt: new Date().toISOString(),
+
       };
 
       await this.saveAllLessonProgress(userId, allProgress);
@@ -153,12 +166,15 @@ export class LocalTestService {
         userId,
         lessonId,
         testId,
-        questions,
+
+        attemptNumber,
         answers: [],
         score: 0,
+        totalQuestions: questions.length,
+        correctAnswers: 0,
         passed: false,
-        startTime: Date.now(),
-        attemptNumber,
+        startedAt: new Date().toISOString(),
+
       };
 
       // Save attempt
@@ -192,14 +208,43 @@ export class LocalTestService {
         throw new Error('Test attempt not found');
       }
 
+
+      // Get questions from the learning service for scoring
+      const testsResponse = await LearningService.getLessonTests(attempt.lessonId);
+      if (!testsResponse.success || !testsResponse.data || testsResponse.data.length === 0) {
+        throw new Error('Test questions not found');
+      }
+      
+      const test = testsResponse.data.find(t => t.id === attempt.testId);
+      if (!test || !test.questions) {
+        throw new Error('Test questions not found');
+      }
+
+      // Process answers to match LocalTestAnswer format
+      const processedAnswers: LocalTestAnswer[] = answers.map(answer => {
+        const question = test.questions!.find((q: any) => q.id === answer.questionId);
+        const isCorrect = question ? question.correct_answer === answer.answer : false;
+        
+        return {
+          questionId: answer.questionId,
+          userAnswer: answer.answer,
+          correctAnswer: question?.correct_answer || '',
+          isCorrect,
+          timeTakenSeconds: answer.timeSpent,
+        };
+      });
+
       // Calculate score locally
-      const { score, passed } = this.calculateScore(attempt.questions, answers);
+      const { score, passed } = this.calculateScore(test.questions, answers);
       
       // Update attempt
-      attempt.answers = answers;
+      attempt.answers = processedAnswers;
       attempt.score = score;
+      attempt.correctAnswers = processedAnswers.filter(a => a.isCorrect).length;
       attempt.passed = passed;
-      attempt.endTime = Date.now();
+      attempt.completedAt = new Date().toISOString();
+      attempt.timeTakenMinutes = Math.round((Date.now() - new Date(attempt.startedAt).getTime()) / 60000);
+
       
       // Save updated attempt
       await this.saveTestAttempt(attempt);
@@ -265,13 +310,17 @@ export class LocalTestService {
     const allProgress = await this.getAllLessonProgress(userId);
     
     return allProgress[lessonId] || {
+
+      userId,
       lessonId,
-      unlocked: lessonId === 1, // First lesson always unlocked
-      completed: false,
+      bookId: 0, // Default value, would need to be set properly
+      status: lessonId === 1 ? 'not_started' : 'not_started', // First lesson available
       testPassed: false,
       bestScore: 0,
-      attempts: 0,
-      lastAccessed: 0,
+      totalAttempts: 0,
+      unlockedAt: lessonId === 1 ? new Date().toISOString() : '',
+      lastAccessedAt: new Date().toISOString(),
+
     };
   }
 
@@ -304,21 +353,25 @@ export class LocalTestService {
     try {
       const allProgress = await this.getAllLessonProgress(userId);
       const current = allProgress[lessonId] || {
+
+        userId,
         lessonId,
-        unlocked: true,
-        completed: false,
+        bookId: 0, // We'll need to get this from the lesson
+        status: 'not_started' as const,
         testPassed: false,
         bestScore: 0,
-        attempts: 0,
-        lastAccessed: 0,
+        totalAttempts: 0,
+        unlockedAt: new Date().toISOString(),
+        lastAccessedAt: new Date().toISOString(),
       };
 
       // Update progress
-      current.completed = passed;
+      current.status = passed ? 'completed' : 'in_progress';
       current.testPassed = passed;
       current.bestScore = Math.max(current.bestScore, score);
-      current.attempts += 1;
-      current.lastAccessed = Date.now();
+      current.totalAttempts += 1;
+      current.lastAccessedAt = new Date().toISOString();
+
 
       allProgress[lessonId] = current;
       await this.saveAllLessonProgress(userId, allProgress);

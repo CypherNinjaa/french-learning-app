@@ -38,6 +38,15 @@ import { BookManagementScreen } from "../screens/admin/BookManagementScreen";
 import { LessonManagementScreen } from "../screens/admin/LessonManagementScreen";
 import { TestManagementScreen } from "../screens/admin/TestManagementScreen";
 
+import { GrammarRulesScreen } from "../screens/GrammarRulesScreen";
+import { GrammarRuleDetailScreen } from "../screens/GrammarRuleDetailScreen";
+import { AdaptivePracticeSession } from "../screens/AdaptivePracticeSession";
+import { FocusedPracticeSession } from "../screens/FocusedPracticeSession";
+import { QuickPracticeSession } from "../screens/QuickPracticeSession";
+import { GrammarCoachScreen } from "../screens/GrammarCoachScreen";
+import { PronunciationProScreen } from "../screens/PronunciationProScreen";
+
+
 // --- Navigation Param List Types ---
 // Auth stack for login/registration flows
 export type AuthStackParamList = {
@@ -74,8 +83,19 @@ export type AppStackParamList = {
 	// Vocabulary & Practice
 	Vocabulary: undefined;
 	VocabularyPractice: { words: any[]; userId: string };
+
+	AdaptivePracticeSession: undefined;
+	FocusedPracticeSession: undefined;
+	QuickPracticeSession: undefined;
 	PronunciationTest: undefined;
 	PersonalizedLearning: undefined;
+	GrammarCoach: undefined;
+	PronunciationPro: undefined;
+
+	// Grammar Rules (User-facing)
+	GrammarRules: undefined;
+	GrammarRuleDetail: { ruleId: number };
+
 
 	// AI & Gamification
 	AITest: undefined;
@@ -142,6 +162,14 @@ const AppNavigator: React.FC = () => {
 				name="PronunciationWordsManagement"
 				component={PronunciationWordsManagement}
 			/>
+
+			{/* User-facing Grammar Rules */}
+			<AppStack.Screen name="GrammarRules" component={GrammarRulesScreen} />
+			<AppStack.Screen
+				name="GrammarRuleDetail"
+				component={GrammarRuleDetailScreen}
+			/>
+
 			{/* Core app screens accessible from anywhere */}
 			<AppStack.Screen name="Progress" component={ProgressScreen} />
 			<AppStack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
@@ -171,6 +199,27 @@ const AppNavigator: React.FC = () => {
 				name="VocabularyPractice"
 				component={VocabularyPracticeScreen}
 			/>
+
+			{/* Enhanced Practice Sessions */}
+			<AppStack.Screen
+				name="AdaptivePracticeSession"
+				component={AdaptivePracticeSession}
+			/>
+			<AppStack.Screen
+				name="FocusedPracticeSession"
+				component={FocusedPracticeSession}
+			/>
+			<AppStack.Screen
+				name="QuickPracticeSession"
+				component={QuickPracticeSession}
+			/>
+			{/* AI Tools */}
+			<AppStack.Screen name="GrammarCoach" component={GrammarCoachScreen} />
+			<AppStack.Screen
+				name="PronunciationPro"
+				component={PronunciationProScreen}
+			/>
+
 		</AppStack.Navigator>
 	);
 };

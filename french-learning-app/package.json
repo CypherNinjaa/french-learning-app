@@ -8,7 +8,11 @@
 		"ios": "expo start --ios",
 		"web": "expo start --web",
 		"test:stage-4-3": "node scripts/test-stage-4-3.js",
-		"type-check": "tsc --noEmit"
+
+		"type-check": "tsc --noEmit",
+		"env:check": "node -e \"console.log('Environment Check:'); console.log('GROQ_API_KEY:', process.env.EXPO_PUBLIC_GROQ_API_KEY ? '✅ Set' : '❌ Missing'); console.log('SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing');\"",
+		"setup": "bash setup.sh"
+
 	},
 	"dependencies": {
 		"@expo/metro-runtime": "~5.0.4",
