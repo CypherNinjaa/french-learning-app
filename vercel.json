@@ -1,0 +1,19 @@
+{
+	"buildCommand": "cd french-learning-app && npm install && expo export --platform web",
+	"outputDirectory": "french-learning-app/dist",
+	"devCommand": "cd french-learning-app && expo start --web",
+	"installCommand": "cd french-learning-app && npm install",
+	"framework": null,
+	"rewrites": [
+		{
+			"source": "/(.*)",
+			"destination": "/index.html"
+		}
+	],
+	"env": {
+		"EXPO_PUBLIC_SUPABASE_URL": "",
+		"EXPO_PUBLIC_SUPABASE_ANON_KEY": "",
+		"EXPO_PUBLIC_GROQ_API_KEY": "",
+		"EXPO_PUBLIC_APP_ENV": "production"
+	}
+}
