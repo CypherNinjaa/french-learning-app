@@ -56,14 +56,39 @@ export const BookDetailScreen: React.FC<BookDetailScreenProps> = ({
 			if (bookResponse.success && bookResponse.data) {
 				setBook(bookResponse.data);
 			}
-
 			// Load lessons for this book
+			console.log(
+				"📚 [BookDetailScreen] Loading lessons for book:",
+				bookId,
+				"user:",
+				user?.id
+			);
 			const lessonsResponse = await LearningService.getLessonsForBook(
 				bookId,
 				user?.id
 			);
+			console.log(
+				"📚 [BookDetailScreen] Lessons response:",
+				JSON.stringify(lessonsResponse, null, 2)
+			);
+
 			if (lessonsResponse.success && lessonsResponse.data) {
 				setLessons(lessonsResponse.data);
+				console.log(
+					`✅ [BookDetailScreen] Loaded ${lessonsResponse.data.length} lessons for user view`
+				);
+				lessonsResponse.data.forEach((lesson, index) => {
+					console.log(
+						`  ${index + 1}. ${lesson.title} (ID: ${lesson.id}, Published: ${
+							lesson.is_published
+						}, Active: ${lesson.is_active})`
+					);
+				});
+			} else {
+				console.error(
+					"❌ [BookDetailScreen] Failed to load lessons:",
+					lessonsResponse.error
+				);
 			}
 		} catch (error) {
 			console.error("Error loading book details:", error);
