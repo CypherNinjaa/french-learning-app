@@ -261,11 +261,9 @@ export class LearningService {
 
       if (error) throw error;
 
-      // Process lessons to determine lock status
-      const processedLessons = await this.processLessonsLockStatus(data || [], userId);
-
+      // For admin, just return the lessons as-is without lock processing
       return {
-        data: processedLessons,
+        data: data || [],
         error: null,
         success: true,
       };
@@ -302,16 +300,25 @@ export class LearningService {
 
       if (error) throw error;
 
-      // Check if lesson is accessible to user
+      // Check if lesson is accessible to user (simplified check)
       if (userId) {
-        const isAccessible = await this.checkLessonAccess(lessonId, userId);
-        if (!isAccessible) {
-          return {
-            data: null,
-            error: 'LESSON_LOCKED',
-            success: false,
-            message: 'This lesson is locked. Complete previous lessons first.',
-          };
+        // For now, just check if it's the first lesson or user has progress
+        if (data.order_index > 0) {
+          const { data: progressData } = await supabase
+            .from('user_lesson_progress')
+            .select('lesson_id')
+            .eq('user_id', userId)
+            .eq('lesson_id', lessonId)
+            .maybeSingle();
+          
+          if (!progressData) {
+            return {
+              data: null,
+              error: 'LESSON_LOCKED',
+              success: false,
+              message: 'This lesson is locked. Complete previous lessons first.',
+            };
+          }
         }
       }
 
@@ -335,25 +342,59 @@ export class LearningService {
    */
   static async createLesson(lessonData: CreateLessonDto): Promise<ApiResponse<LearningLesson>> {
     try {
+      console.log('🔍 [LearningService] Creating lesson with data:', JSON.stringify(lessonData, null, 2));
+      
+      // Get current user for created_by field
+      const { data: user, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('❌ [LearningService] Error getting user:', userError);
+        throw new Error(`User authentication error: ${userError.message}`);
+      }
+      
+      if (!user.user) {
+        console.error('❌ [LearningService] No authenticated user found');
+        throw new Error('No authenticated user found');
+      }
+      
+      console.log('✅ [LearningService] Authenticated user:', user.user.id);
+
+      const insertData = {
+        ...lessonData,
+        created_by: user.user.id,
+      };
+      
+      console.log('📝 [LearningService] Insert data:', JSON.stringify(insertData, null, 2));
+
       const { data, error } = await supabase
         .from('learning_lessons')
-        .insert([{
-          ...lessonData,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
-        }])
+        .insert([insertData])
         .select('*')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [LearningService] Database error creating lesson:', error);
+        console.error('❌ [LearningService] Error details:', JSON.stringify(error, null, 2));
+        throw error;
+      }
+
+      console.log('✅ [LearningService] Lesson created successfully:', data);
 
       // Create default test for the lesson
       if (data) {
-        await this.createTest({
+        console.log('📝 [LearningService] Creating default test for lesson...');
+        
+        const testResult = await this.createTest({
           lesson_id: data.id,
           title: `${data.title} - Assessment`,
           question_count: 5,
-          passing_percentage: data.passing_percentage,
+          passing_percentage: data.passing_percentage || 65,
         });
+        
+        if (!testResult.success) {
+          console.warn('⚠️ [LearningService] Failed to create default test:', testResult.error);
+        } else {
+          console.log('✅ [LearningService] Default test created successfully');
+        }
       }
 
       return {
@@ -363,7 +404,7 @@ export class LearningService {
         message: 'Lesson created successfully',
       };
     } catch (error) {
-      console.error('Error creating lesson:', error);
+      console.error('❌ [LearningService] Error creating lesson:', error);
       return {
         data: null,
         error: error instanceof Error ? error.message : 'Failed to create lesson',
@@ -556,6 +597,306 @@ export class LearningService {
     }
   }
 
+  /**
+   * Admin: Get a specific test with its questions
+   */
+  static async getTest(testId: number): Promise<ApiResponse<LessonTest>> {
+    try {
+      console.log('📚 [LearningService] Getting test:', testId);
+      
+      const { data, error } = await supabase
+        .from('lesson_tests')
+        .select(`
+          *,
+          lesson:learning_lessons(
+            id,
+            title,
+            book_id,
+            book:learning_books(id, title)
+          ),
+          questions:test_questions(*)
+        `)
+        .eq('id', testId)
+        .single();
+
+      if (error) {
+        console.error('❌ [LearningService] Error fetching test:', error);
+        throw error;
+      }
+
+      console.log(`✅ [LearningService] Retrieved test: ${data?.title}`);
+      
+      return {
+        data: data || null,
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error('❌ [LearningService] Error in getTest:', error);
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to fetch test',
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Admin: Update a test
+   */
+  static async updateTest(testId: number, updates: UpdateTestDto): Promise<ApiResponse<LessonTest>> {
+    try {
+      console.log('📝 [LearningService] Updating test:', testId);
+      
+      const { data, error } = await supabase
+        .from('lesson_tests')
+        .update(updates)
+        .eq('id', testId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('❌ [LearningService] Error updating test:', error);
+        throw error;
+      }
+
+      console.log('✅ [LearningService] Test updated successfully');
+      
+      return {
+        data,
+        error: null,
+        success: true,
+        message: 'Test updated successfully',
+      };
+    } catch (error) {
+      console.error('❌ [LearningService] Error in updateTest:', error);
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to update test',
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Admin: Delete a test
+   */
+  static async deleteTest(testId: number): Promise<ApiResponse<void>> {
+    try {
+      console.log('🗑️ [LearningService] Deleting test:', testId);
+      
+      const { error } = await supabase
+        .from('lesson_tests')
+        .delete()
+        .eq('id', testId);
+
+      if (error) {
+        console.error('❌ [LearningService] Error deleting test:', error);
+        throw error;
+      }
+
+      console.log('✅ [LearningService] Test deleted successfully');
+      
+      return {
+        data: undefined,
+        error: null,
+        success: true,
+        message: 'Test deleted successfully',
+      };
+    } catch (error) {
+      console.error('❌ [LearningService] Error in deleteTest:', error);
+      return {
+        data: undefined,
+        error: error instanceof Error ? error.message : 'Failed to delete test',
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Admin: Update a question
+   */
+  static async updateQuestion(questionId: number, updates: UpdateQuestionDto): Promise<ApiResponse<TestQuestion>> {
+    try {
+      console.log('📝 [LearningService] Updating question:', questionId);
+      
+      const { data, error } = await supabase
+        .from('test_questions')
+        .update(updates)
+        .eq('id', questionId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('❌ [LearningService] Error updating question:', error);
+        throw error;
+      }
+
+      console.log('✅ [LearningService] Question updated successfully');
+      
+      return {
+        data,
+        error: null,
+        success: true,
+        message: 'Question updated successfully',
+      };
+    } catch (error) {
+      console.error('❌ [LearningService] Error in updateQuestion:', error);
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to update question',
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Admin: Delete a question
+   */
+  static async deleteQuestion(questionId: number): Promise<ApiResponse<void>> {
+    try {
+      console.log('🗑️ [LearningService] Deleting question:', questionId);
+      
+      const { error } = await supabase
+        .from('test_questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (error) {
+        console.error('❌ [LearningService] Error deleting question:', error);
+        throw error;
+      }
+
+      console.log('✅ [LearningService] Question deleted successfully');
+      
+      return {
+        data: undefined,
+        error: null,
+        success: true,
+        message: 'Question deleted successfully',
+      };
+    } catch (error) {
+      console.error('❌ [LearningService] Error in deleteQuestion:', error);
+      return {
+        data: undefined,
+        error: error instanceof Error ? error.message : 'Failed to delete question',
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Get all tests (admin)
+   */
+  static async getAllTests(): Promise<ApiResponse<LessonTest[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('lesson_tests')
+        .select(`
+          *,
+          lesson:learning_lessons(
+            id,
+            title,
+            book:learning_books(id, title)
+          )
+        `)
+        .eq('is_active', true)
+        .order('id', { ascending: true });
+
+      if (error) throw error;
+
+      return {
+        data: data || [],
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error('Error getting all tests:', error);
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to get tests',
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Admin: Get all lessons for a specific book (without user filtering)
+   */
+  static async getAllLessonsForBook(bookId: number): Promise<ApiResponse<LearningLesson[]>> {
+    try {
+      console.log('📚 [LearningService] Getting all lessons for book:', bookId);
+      
+      const { data, error } = await supabase
+        .from('learning_lessons')
+        .select(`
+          *,
+          book:learning_books(id, title),
+          test:lesson_tests(*)
+        `)
+        .eq('book_id', bookId)
+        .order('order_index', { ascending: true });
+
+      if (error) {
+        console.error('❌ [LearningService] Error fetching lessons for book:', error);
+        throw error;
+      }
+
+      console.log(`✅ [LearningService] Retrieved ${data?.length || 0} lessons for book ${bookId}`);
+      
+      return {
+        data: data || [],
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error('❌ [LearningService] Error in getAllLessonsForBook:', error);
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to fetch lessons for book',
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Admin: Get all lessons across all books
+   */
+  static async getAllLessons(): Promise<ApiResponse<LearningLesson[]>> {
+    try {
+      console.log('📚 [LearningService] Getting all lessons...');
+      
+      const { data, error } = await supabase
+        .from('learning_lessons')
+        .select(`
+          *,
+          book:learning_books(id, title),
+          test:lesson_tests(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ [LearningService] Error fetching all lessons:', error);
+        throw error;
+      }
+
+      console.log(`✅ [LearningService] Retrieved ${data?.length || 0} lessons`);
+      
+      return {
+        data: data || [],
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error('❌ [LearningService] Error in getAllLessons:', error);
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to fetch lessons',
+        success: false,
+      };
+    }
+  }
+
   // ============================================================================
   // USER PROGRESS TRACKING
   // ============================================================================
@@ -612,8 +953,6 @@ export class LearningService {
             onConflict: 'user_id,lesson_id',
             ignoreDuplicates: true // Don't overwrite if already exists
           });
-        
-        console.log(`Initialized access to first lesson ${firstLesson.id} for user ${userId}`);
       }
 
       return {
@@ -820,647 +1159,63 @@ export class LearningService {
     }
   }
 
-  // ============================================================================
-  // TEST TAKING SYSTEM
-  // ============================================================================
-
   /**
-   * Start a test attempt
+   * Admin: Get progress of all users for a specific book
    */
-  static async startTest(userId: string, testData: StartTestDto): Promise<ApiResponse<TestAttempt>> {
-    try {
-      const { lesson_id, test_id } = testData;
-
-      // Check if user can take the test
-      const canTakeTest = await this.canUserTakeTest(userId, lesson_id, test_id);
-      if (!canTakeTest.allowed) {
-        return {
-          data: null,
-          error: canTakeTest.reason as LearningError,
-          success: false,
-          message: canTakeTest.message,
-        };
-      }
-
-      // Get attempt number
-      const { count: previousAttempts } = await supabase
-        .from('test_attempts')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('test_id', test_id);
-
-      const attemptNumber = (previousAttempts || 0) + 1;
-
-      // Create test attempt
-      const { data, error } = await supabase
-        .from('test_attempts')
-        .insert([{
-          user_id: userId,
-          lesson_id,
-          test_id,
-          attempt_number: attemptNumber,
-          score: 0,
-          total_questions: 0,
-          correct_answers: 0,
-          answers: [],
-          passed: false,
-          started_at: new Date().toISOString(),
-        }])
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      return {
-        data,
-        error: null,
-        success: true,
-        message: 'Test started successfully',
-      };
-    } catch (error) {
-      console.error('Error starting test:', error);
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : 'Failed to start test',
-        success: false,
-      };
-    }
-  }
-
-  /**
-   * Submit a test attempt
-   */
-  static async submitTest(userId: string, submitData: SubmitTestDto): Promise<ApiResponse<TestAttempt>> {
-    try {
-      const { attempt_id, answers, time_taken_minutes } = submitData;
-
-      console.log(`Looking up test attempt with id: ${attempt_id} for user: ${userId}`);
-      
-      // First, get the basic test attempt
-      const { data: attempt, error: attemptError } = await supabase
-        .from('test_attempts')
-        .select('*')
-        .eq('id', attempt_id)
-        .eq('user_id', userId)
-        .single();
-
-      if (attemptError) {
-        console.error("Error fetching test attempt:", attemptError);
-        throw new Error(`Test attempt not found: ${attemptError.message}`);
-      }
-      
-      if (!attempt) {
-        throw new Error("Test attempt not found");
-      }
-
-      console.log("Found test attempt:", attempt);
-
-      // Get the test details
-      const { data: testData, error: testError } = await supabase
-        .from('lesson_tests')
-        .select('*')
-        .eq('id', attempt.test_id)
-        .single();
-
-      if (testError || !testData) {
-        console.error("Error fetching test:", testError);
-        throw new Error(`Test not found: ${testError?.message || 'No test data'}`);
-      }
-
-      console.log("Found test:", testData);
-
-      // Get the test questions
-      const { data: questions, error: questionsError } = await supabase
-        .from('test_questions')
-        .select('*')
-        .eq('test_id', attempt.test_id)
-        .order('order_index');
-
-      if (questionsError) {
-        console.error("Error fetching questions:", questionsError);
-        throw new Error(`Questions not found: ${questionsError.message}`);
-      }
-
-      console.log("Found questions:", questions?.length || 0);
-
-      // Create the combined attempt object to match the expected structure
-      const combinedAttempt = {
-        ...attempt,
-        test: {
-          ...testData,
-          questions: questions || []
-        }
-      };
-
-      // Calculate score
-      const { score, correctAnswers, detailedAnswers } = this.calculateTestScore(
-        answers,
-        combinedAttempt.test.questions
-      );
-
-      const passed = score >= combinedAttempt.test.passing_percentage;
-
-      console.log(`Test score: ${score}%, passed: ${passed}, required: ${combinedAttempt.test.passing_percentage}%`);
-
-      // Update test attempt
-      const { data: updatedAttempt, error: updateError } = await supabase
-        .from('test_attempts')
-        .update({
-          score,
-          total_questions: combinedAttempt.test.questions.length,
-          correct_answers: correctAnswers,
-          time_taken_minutes,
-          answers: detailedAnswers,
-          passed,
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', attempt_id)
-        .select('*')
-        .maybeSingle();
-
-      if (updateError) throw updateError;
-      // If no row is returned, log a warning and use the original attempt with calculated values
-      let updatedAttemptRecord = null;
-      if (!updatedAttempt) {
-        console.warn('No test attempt rows updated. Attempt may not exist or was already updated. Returning original attempt with calculated score.');
-        // Update the original attempt with our calculated values
-        updatedAttemptRecord = {
-          ...attempt,
-          score,
-          total_questions: combinedAttempt.test.questions.length,
-          correct_answers: correctAnswers,
-          time_taken_minutes,
-          answers: detailedAnswers,
-          passed,
-          completed_at: new Date().toISOString(),
-        };
-      } else if (Array.isArray(updatedAttempt) && updatedAttempt.length > 0) {
-        updatedAttemptRecord = updatedAttempt[0];
-      } else {
-        updatedAttemptRecord = updatedAttempt;
-      }
-
-      // Update lesson progress whether test passed or failed
-      console.log(`Updating lesson progress for lesson ${combinedAttempt.lesson_id} with score ${score}%`);
-      
-      try {
-        // Direct update of lesson progress to avoid issues with the complex upsert logic
-        const { data: progressData, error: progressError } = await supabase
-          .from('user_lesson_progress')
-          .upsert({
-            user_id: userId,
-            lesson_id: combinedAttempt.lesson_id,
-            status: passed ? 'completed' : 'in_progress',
-            test_passed: passed,
-            completed_at: passed ? new Date().toISOString() : null,
-            updated_at: new Date().toISOString(),
-            last_accessed_at: new Date().toISOString(),
-            // Set defaults for required fields
-            content_viewed: true,
-            examples_practiced: false,
-            total_study_time_minutes: 0,
-            bookmarks: [],
-            notes: '',
-            created_at: new Date().toISOString(),
-          }, {
-            onConflict: 'user_id,lesson_id',
-            ignoreDuplicates: false
-          });
-
-        if (progressError) {
-          console.error('Error updating lesson progress:', progressError);
-        } else {
-          console.log('Lesson progress updated successfully');
-        }
-      } catch (progressError) {
-        console.error('Error updating lesson progress:', progressError);
-        // Don't throw here - we still want to return the test result even if progress update fails
-      }
-
-      // Unlock next lesson only if test passed - do this locally and update database
-      if (passed) {
-        console.log('Test passed! Unlocking next lesson...');
-        try {
-          await this.unlockNextLessonDirect(userId, combinedAttempt.lesson_id);
-          console.log('Next lesson unlocked successfully');
-        } catch (unlockError) {
-          console.error('Error unlocking next lesson:', unlockError);
-          // Don't throw here either - test was still passed
-        }
-      }
-
-      return {
-        data: updatedAttemptRecord,
-        error: null,
-        success: true,
-        message: passed ? 'Test passed! Lesson completed.' : 'Test completed. Try again to pass.',
-      };
-    } catch (error) {
-      console.error('Error submitting test:', error);
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : 'Failed to submit test',
-        success: false,
-      };
-    }
-  }
-
-  // ============================================================================
-  // HELPER METHODS
-  // ============================================================================
-
-  /**
-   * Process lessons to determine lock status - simplified approach
-   */
-  private static async processLessonsLockStatus(
-    lessons: any[],
-    userId?: string
-  ): Promise<LearningLesson[]> {
-    if (!userId) {
-      // If no user, all lessons except first are locked
-      return lessons.map((lesson, index) => ({
-        ...lesson,
-        is_locked: index > 0,
-      }));
-    }
-
-    // Get user's lesson progress for all lessons in one query
-    const { data: progressData } = await supabase
-      .from('user_lesson_progress')
-      .select('lesson_id, status, test_passed')
-      .eq('user_id', userId)
-      .in('lesson_id', lessons.map(l => l.id));
-
-    const progressMap = new Map(progressData?.map(p => [p.lesson_id, p]) || []);
-
-    return lessons.map((lesson, index) => {
-      let isLocked = false;
-      
-      if (index === 0) {
-        // First lesson is always unlocked
-        isLocked = false;
-      } else {
-        // Lesson is unlocked if user has a progress record for it
-        const hasProgress = progressMap.has(lesson.id);
-        isLocked = !hasProgress;
-      }
-
-      return {
-        ...lesson,
-        is_locked: isLocked,
-      } as LearningLesson;
-    });
-  }
-
-  /**
-   * Check if a lesson is accessible to a user
-   */
-  private static async checkLessonAccess(lessonId: number, userId: string): Promise<boolean> {
-    // Use the new local access check method
-    return await this.checkLessonAccessLocal(lessonId, userId);
-  }
-
-  /**
-   * Check lesson access locally - more reliable approach
-   */
-  private static async checkLessonAccessLocal(lessonId: number, userId: string): Promise<boolean> {
-    try {
-      // Get the lesson details
-      const { data: lesson, error: lessonError } = await supabase
-        .from('learning_lessons')
-        .select('book_id, order_index, title')
-        .eq('id', lessonId)
-        .single();
-
-      if (lessonError || !lesson) {
-        console.error('Error fetching lesson:', lessonError);
-        return false;
-      }
-
-      // First lesson in any book is always accessible
-      if (lesson.order_index === 0) {
-        console.log(`Lesson ${lessonId} is the first lesson - access granted`);
-        return true;
-      }
-
-      // Check if user has a progress record for this lesson (which means it was unlocked)
-      const { data: progressRecord, error: progressError } = await supabase
-        .from('user_lesson_progress')
-        .select('lesson_id, status')
-        .eq('user_id', userId)
-        .eq('lesson_id', lessonId)
-        .maybeSingle();
-
-      if (progressError) {
-        console.error('Error checking lesson progress:', progressError);
-        return false;
-      }
-
-      // If there's a progress record, the lesson is accessible
-      const hasAccess = !!progressRecord;
-      console.log(`Lesson ${lessonId} access check: ${hasAccess ? 'GRANTED' : 'DENIED'}`);
-      
-      return hasAccess;
-      
-    } catch (error) {
-      console.error('Error in checkLessonAccessLocal:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Check if user can take a test
-   */
-  private static async canUserTakeTest(
-    userId: string,
-    lessonId: number,
-    testId: number
-  ): Promise<{ allowed: boolean; reason?: string; message?: string }> {
-    try {
-      // Check lesson access
-      const hasAccess = await this.checkLessonAccess(lessonId, userId);
-      if (!hasAccess) {
-        return {
-          allowed: false,
-          reason: 'LESSON_LOCKED',
-          message: 'Complete previous lessons to unlock this test.',
-        };
-      }
-
-      // Check if user has viewed content
-      const { data: progress } = await supabase
-        .from('user_lesson_progress')
-        .select('content_viewed, test_attempts')
-        .eq('user_id', userId)
-        .eq('lesson_id', lessonId)
-        .single();
-
-      if (!progress?.content_viewed) {
-        return {
-          allowed: false,
-          reason: 'CONTENT_NOT_VIEWED',
-          message: 'Please read the lesson content before taking the test.',
-        };
-      }
-
-      // Check attempt limit
-      const { data: lesson } = await supabase
-        .from('learning_lessons')
-        .select('max_attempts')
-        .eq('id', lessonId)
-        .single();
-
-      if (lesson && progress.test_attempts >= lesson.max_attempts) {
-        return {
-          allowed: false,
-          reason: 'ATTEMPTS_EXCEEDED',
-          message: 'Maximum test attempts exceeded.',
-        };
-      }
-
-      return { allowed: true };
-    } catch (error) {
-      console.error('Error checking test eligibility:', error);
-      return {
-        allowed: false,
-        reason: 'UNKNOWN_ERROR',
-        message: 'Unable to verify test eligibility.',
-      };
-    }
-  }
-
-  /**
-   * Calculate test score
-   */
-  private static calculateTestScore(
-    userAnswers: { question_id: number; user_answer: string; time_taken_seconds?: number }[],
-    questions: TestQuestion[]
-  ): { score: number; correctAnswers: number; detailedAnswers: any[] } {
-    let correctAnswers = 0;
-    const detailedAnswers = userAnswers.map(answer => {
-      const question = questions.find(q => q.id === answer.question_id);
-      const isCorrect = question?.correct_answer === answer.user_answer;
-      
-      if (isCorrect) correctAnswers++;
-
-      return {
-        question_id: answer.question_id,
-        user_answer: answer.user_answer,
-        correct_answer: question?.correct_answer,
-        is_correct: isCorrect,
-        points_earned: isCorrect ? (question?.points || 1) : 0,
-        time_taken_seconds: answer.time_taken_seconds,
-      };
-    });
-
-    const totalPoints = questions.reduce((sum, q) => sum + (q.points || 1), 0);
-    const earnedPoints = detailedAnswers.reduce((sum, a) => sum + a.points_earned, 0);
-    const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
-
-    return {
-      score: Math.round(score * 100) / 100, // Round to 2 decimal places
-      correctAnswers,
-      detailedAnswers,
-    };
-  }
-
-  /**
-   * Directly unlock the next lesson after passing a test - simpler approach
-   */
-  private static async unlockNextLessonDirect(userId: string, currentLessonId: number): Promise<void> {
-    try {
-      console.log(`Directly unlocking next lesson after lesson ${currentLessonId} for user ${userId}`);
-      
-      // Get current lesson details
-      const { data: currentLesson, error: currentError } = await supabase
-        .from('learning_lessons')
-        .select('book_id, order_index')
-        .eq('id', currentLessonId)
-        .single();
-
-      if (currentError || !currentLesson) {
-        console.error('Error fetching current lesson:', currentError);
-        return;
-      }
-
-      console.log(`Current lesson: book_id=${currentLesson.book_id}, order_index=${currentLesson.order_index}`);
-
-      // Get the next lesson in the same book
-      const { data: nextLesson, error: nextError } = await supabase
-        .from('learning_lessons')
-        .select('id, title')
-        .eq('book_id', currentLesson.book_id)
-        .eq('order_index', currentLesson.order_index + 1)
-        .single();
-
-      if (nextError || !nextLesson) {
-        console.log('No next lesson found (end of book or error):', nextError?.message);
-        // If this was the last lesson in the book, mark book as completed
-        console.log(`User ${userId} completed book ${currentLesson.book_id}!`);
-        return;
-      }
-
-      console.log(`Found next lesson: ${nextLesson.id} - ${nextLesson.title}`);
-      
-      // Create/update progress record for the next lesson to mark it as accessible
-      const { error: updateError } = await supabase
-        .from('user_lesson_progress')
-        .upsert({
-          user_id: userId,
-          lesson_id: nextLesson.id,
-          status: 'not_started', // Mark as available but not started
-          content_viewed: false,
-          examples_practiced: false,
-          test_passed: false,
-          total_study_time_minutes: 0,
-          bookmarks: [],
-          notes: '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_accessed_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,lesson_id',
-          ignoreDuplicates: false // Update if exists
-        });
-
-      if (updateError) {
-        console.error('Error creating next lesson access:', updateError);
-      } else {
-        console.log(`Successfully unlocked next lesson ${nextLesson.id} for user ${userId}`);
-      }
-      
-    } catch (error) {
-      console.error('Error in unlockNextLessonDirect:', error);
-    }
-  }
-
-  /**
-   * Unlock the next lesson after completing current one
-   */
-  private static async unlockNextLesson(userId: string, currentLessonId: number): Promise<void> {
-    try {
-      console.log(`Unlocking next lesson after lesson ${currentLessonId} for user ${userId}`);
-      
-      const { data: currentLessons, error: currentError } = await supabase
-        .from('learning_lessons')
-        .select('book_id, order_index')
-        .eq('id', currentLessonId);
-
-      if (currentError) {
-        console.error('Error fetching current lesson:', currentError);
-        return;
-      }
-
-      if (!currentLessons || currentLessons.length === 0) {
-        console.log('Current lesson not found');
-        return;
-      }
-
-      const currentLesson = currentLessons[0];
-      console.log(`Current lesson: book_id=${currentLesson.book_id}, order_index=${currentLesson.order_index}`);
-
-      const { data: nextLessons, error: nextError } = await supabase
-        .from('learning_lessons')
-        .select('id')
-        .eq('book_id', currentLesson.book_id)
-        .eq('order_index', currentLesson.order_index + 1);
-
-      if (nextError) {
-        console.error('Error fetching next lesson:', nextError);
-        return;
-      }
-
-      if (nextLessons && nextLessons.length > 0) {
-        const nextLesson = nextLessons[0];
-        console.log(`Found next lesson: ${nextLesson.id}`);
-        
-        // Try to update the next lesson's status
-        const { data: updateResult, error: updateError } = await supabase
-          .from('user_lesson_progress')
-          .upsert({
-            user_id: userId,
-            lesson_id: nextLesson.id,
-            status: 'not_started',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_accessed_at: new Date().toISOString(),
-            content_viewed: false,
-            examples_practiced: false,
-            test_passed: false,
-            total_study_time_minutes: 0,
-            bookmarks: [],
-            notes: ''
-          }, {
-            onConflict: 'user_id,lesson_id',
-            ignoreDuplicates: false
-          })
-          .select('*');
-
-        if (updateError) {
-          console.error('Error updating next lesson progress:', updateError);
-        } else {
-          console.log('Successfully unlocked next lesson:', updateResult);
-        }
-      } else {
-        console.log('No next lesson found (end of book)');
-        // If this was the last lesson in the book, we could unlock the next book here
-        // For now, just log that the user completed the book
-        console.log(`User ${userId} completed book ${currentLesson.book_id}!`);
-      }
-    } catch (error) {
-      console.error('Error unlocking next lesson:', error);
-    }
-  }
-
-  /**
-   * Get all lessons (admin)
-   */
-  static async getAllLessons(): Promise<ApiResponse<LearningLesson[]>> {
+  static async getBookProgressOverview(bookId: number): Promise<ApiResponse<UserBookProgress[]>> {
     try {
       const { data, error } = await supabase
-        .from('learning_lessons')
+        .from('user_book_progress')
         .select(`
-          *,
-          book:learning_books(id, title)
+          user_id,
+          user:users(
+            id,
+            name,
+            email
+          ),
+          book_id,
+          started_at,
+          last_accessed_at,
+          progress_percentage
         `)
-        .eq('is_active', true)
-        .order('book_id', { ascending: true })
-        .order('order_index', { ascending: true });
+        .eq('book_id', bookId)
+        .order('last_accessed_at', { ascending: false });
 
       if (error) throw error;
 
       return {
-        data: data || [],
+        data: (data || []) as any[], // Casting as any[] since we're returning a subset of UserBookProgress
         error: null,
         success: true,
       };
     } catch (error) {
-      console.error('Error getting all lessons:', error);
+      console.error('Error fetching book progress overview:', error);
       return {
         data: null,
-        error: error instanceof Error ? error.message : 'Failed to get lessons',
+        error: error instanceof Error ? error.message : 'Failed to fetch progress overview',
         success: false,
       };
     }
   }
 
   /**
-   * Get all tests (admin)
+   * Admin: Get detailed progress of a specific user
    */
-  static async getAllTests(): Promise<ApiResponse<LessonTest[]>> {
+  static async getUserProgressDetail(userId: string): Promise<ApiResponse<UserLessonProgress[]>> {
     try {
       const { data, error } = await supabase
-        .from('lesson_tests')
+        .from('user_lesson_progress')
         .select(`
           *,
           lesson:learning_lessons(
             id,
             title,
-            book:learning_books(id, title)
+            book_id,
+            book:learning_books(id, title, difficulty_level)
           )
         `)
-        .eq('is_active', true)
-        .order('id', { ascending: true });
+        .eq('user_id', userId)
+        .order('last_accessed_at', { ascending: false });
 
       if (error) throw error;
 
@@ -1470,10 +1225,10 @@ export class LearningService {
         success: true,
       };
     } catch (error) {
-      console.error('Error getting all tests:', error);
+      console.error('Error fetching user progress detail:', error);
       return {
         data: null,
-        error: error instanceof Error ? error.message : 'Failed to get tests',
+        error: error instanceof Error ? error.message : 'Failed to fetch progress detail',
         success: false,
       };
     }
