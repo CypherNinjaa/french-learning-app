@@ -216,10 +216,14 @@ export class LocalTestService {
       const nextLessonExists = progressData.some(p => p.lessonId === nextLessonId);
 
       if (!nextLessonExists) {
+        // Get current lesson progress to know which book we're in
+        const currentProgress = progressData.find(p => p.lessonId === currentLessonId);
+        const bookId = currentProgress?.bookId || 1;
+
         const nextLessonProgress: LocalLessonProgress = {
           userId,
           lessonId: nextLessonId,
-          bookId: 1, // Default to book 1
+          bookId, // Use the same book ID as current lesson
           status: 'not_started',
           testPassed: false,
           bestScore: 0,
@@ -335,6 +339,39 @@ export class LocalTestService {
     } catch (error) {
       console.error('Error getting test attempt:', error);
       return null;
+    }
+  }
+
+  /**
+   * Check if all lessons in a book are completed with tests passed
+   */
+  static async areAllLessonsCompleted(userId: string, bookId: number, totalLessons: number): Promise<boolean> {
+    try {
+      const progressData = await this.getLessonProgress(userId);
+      const bookProgress = progressData.filter(p => p.bookId === bookId);
+      
+      // Check if we have progress for all lessons and all tests are passed
+      const completedLessons = bookProgress.filter(p => p.testPassed).length;
+      return completedLessons >= totalLessons;
+    } catch (error) {
+      console.error('Error checking book completion:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get book completion percentage
+   */
+  static async getBookCompletionPercentage(userId: string, bookId: number, totalLessons: number): Promise<number> {
+    try {
+      const progressData = await this.getLessonProgress(userId);
+      const bookProgress = progressData.filter(p => p.bookId === bookId);
+      
+      const completedLessons = bookProgress.filter(p => p.testPassed).length;
+      return totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+    } catch (error) {
+      console.error('Error calculating book completion:', error);
+      return 0;
     }
   }
 
