@@ -1,0 +1,19 @@
+{
+	"buildCommand": "expo export --platform web",
+	"outputDirectory": "dist",
+	"devCommand": "expo start --web",
+	"installCommand": "npm install",
+	"framework": null,
+	"rewrites": [
+		{
+			"source": "/(.*)",
+			"destination": "/index.html"
+		}
+	],
+	"env": {
+		"EXPO_PUBLIC_SUPABASE_URL": "",
+		"EXPO_PUBLIC_SUPABASE_ANON_KEY": "",
+		"EXPO_PUBLIC_GROQ_API_KEY": "",
+		"EXPO_PUBLIC_APP_ENV": "production"
+	}
+}
