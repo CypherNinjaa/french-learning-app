@@ -4,6 +4,8 @@
 		"strict": true,
 		"module": "ESNext",
 		"moduleResolution": "bundler",
-		"forceConsistentCasingInFileNames": true
+		"forceConsistentCasingInFileNames": true,
+		"jsx": "react-jsx",
+		"jsxImportSource": "react"
 	}
 }

@@ -1,54 +1,52 @@
 {
-	"name": "french-learning-app",
-	"version": "1.0.0",
-	"main": "index.ts",
-	"scripts": {
-		"start": "expo start",
-		"android": "expo start --android",
-		"ios": "expo start --ios",
-		"web": "expo start --web",
-		"test:stage-4-3": "node scripts/test-stage-4-3.js",
-
-		"type-check": "tsc --noEmit",
-		"env:check": "node -e \"console.log('Environment Check:'); console.log('GROQ_API_KEY:', process.env.EXPO_PUBLIC_GROQ_API_KEY ? '✅ Set' : '❌ Missing'); console.log('SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing');\"",
-		"setup": "bash setup.sh"
-
-	},
-	"dependencies": {
-		"@expo/metro-runtime": "~5.0.4",
-		"@react-native-async-storage/async-storage": "^2.1.2",
-		"@react-native-picker/picker": "^2.11.0",
-		"@react-navigation/bottom-tabs": "^7.3.17",
-		"@react-navigation/native": "^7.1.13",
-		"@react-navigation/stack": "^7.3.6",
-		"@supabase/supabase-js": "^2.50.0",
-		"expo": "~53.0.12",
-		"expo-av": "~15.1.6",
-		"expo-image-picker": "~16.1.4",
-		"expo-linear-gradient": "^14.1.5",
-		"expo-linking": "^7.1.5",
-		"expo-speech": "~13.1.7",
-		"expo-status-bar": "~2.2.3",
-		"groq-sdk": "^0.25.0",
-		"react": "19.0.0",
-		"react-dom": "19.0.0",
-		"react-native": "0.79.4",
-		"react-native-gesture-handler": "~2.24.0",
-		"react-native-safe-area-context": "5.4.0",
-		"react-native-screens": "^4.11.1",
-		"react-native-web": "^0.20.0"
-	},
-	"devDependencies": {
-		"@babel/core": "^7.25.2",
-		"@types/react": "~19.0.10",
-		"typescript": "~5.8.3"
-	},
-	"private": true,
-	"expo": {
-		"doctor": {
-			"reactNativeDirectoryCheck": {
-				"listUnknownPackages": false
-			}
-		}
-	}
+  "name": "french-learning-app",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test:stage-4-3": "node scripts/test-stage-4-3.js",
+    "type-check": "tsc --noEmit",
+    "env:check": "node -e \"console.log('Environment Check:'); console.log('GROQ_API_KEY:', process.env.EXPO_PUBLIC_GROQ_API_KEY ? '✅ Set' : '❌ Missing'); console.log('SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing');\"",
+    "setup": "bash setup.sh"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~5.0.4",
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-picker/picker": "2.11.1",
+    "@react-navigation/bottom-tabs": "^7.3.17",
+    "@react-navigation/native": "^7.1.13",
+    "@react-navigation/stack": "^7.3.6",
+    "@supabase/supabase-js": "^2.50.0",
+    "expo": "53.0.17",
+    "expo-av": "~15.1.7",
+    "expo-image-picker": "~16.1.4",
+    "expo-linear-gradient": "^14.1.5",
+    "expo-linking": "~7.1.7",
+    "expo-speech": "~13.1.7",
+    "expo-status-bar": "~2.2.3",
+    "groq-sdk": "^0.25.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "^4.11.1",
+    "react-native-web": "^0.20.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
+  },
+  "private": true,
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "listUnknownPackages": false
+      }
+    }
+  }
 }
