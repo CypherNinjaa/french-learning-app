@@ -4,10 +4,12 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { HomeScreen } from "../screens/HomeScreen";
 import { BooksScreen } from "../screens/BooksScreen";
+
 import { EnhancedPracticeScreen } from "../screens/EnhancedPracticeScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { VocabularyScreen } from "../screens/VocabularyScreen";
 import { GrammarRulesScreen } from "../screens/GrammarRulesScreen";
+
 import { useTheme } from "../contexts/ThemeContext";
 
 const Tab = createBottomTabNavigator();
@@ -33,7 +35,9 @@ export const TabNavigation: React.FC = () => {
 					else if (route.name === "Books") iconName = "library";
 					else if (route.name === "Practice") iconName = "rocket";
 					else if (route.name === "Vocabulary") iconName = "book";
+
 					else if (route.name === "Grammar") iconName = "list";
+
 					else if (route.name === "Profile") iconName = "person";
 					return <Ionicons name={iconName} size={size} color={color} />;
 				},
@@ -42,8 +46,10 @@ export const TabNavigation: React.FC = () => {
 			<Tab.Screen name="Home" component={HomeScreen} />
 			<Tab.Screen name="Books" component={BooksScreen} />
 			<Tab.Screen name="Vocabulary" component={VocabularyScreen} />
+
 			<Tab.Screen name="Grammar" component={GrammarRulesScreen} />
 			<Tab.Screen name="Practice" component={EnhancedPracticeScreen} />
+
 			<Tab.Screen name="Profile" component={ProfileScreen} />
 		</Tab.Navigator>
 	);

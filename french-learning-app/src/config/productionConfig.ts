@@ -1,4 +1,5 @@
 // Production Configuration
+
 // This file contains fallback configuration when environment variables are not available
 // The actual API keys should be stored in .env file (not committed to Git)
 
@@ -12,11 +13,13 @@ export const PRODUCTION_CONFIG = {
   // Groq AI Configuration (fallback values only)
   GROQ: {
     API_KEY: '' // Leave empty - use environment variables
+
   },
 
   // App Environment
   APP_ENV: 'production'
 };
+
 
 // Helper function to safely get environment variables with validation
 const getEnvVar = (key: string, fallback: string): string => {
@@ -43,6 +46,7 @@ const getEnvVar = (key: string, fallback: string): string => {
 // Export the configuration with environment variable validation
 export const getConfig = () => {
   const config = {
+
     supabase: {
       url: getEnvVar('EXPO_PUBLIC_SUPABASE_URL', PRODUCTION_CONFIG.SUPABASE.URL),
       anonKey: getEnvVar('EXPO_PUBLIC_SUPABASE_ANON_KEY', PRODUCTION_CONFIG.SUPABASE.ANON_KEY)
@@ -52,7 +56,7 @@ export const getConfig = () => {
     },
     appEnv: getEnvVar('EXPO_PUBLIC_APP_ENV', PRODUCTION_CONFIG.APP_ENV)
   };
-  
+
   // Log configuration status (without exposing keys)
   console.log('🔧 App Configuration Loaded:');
   console.log(`   Supabase URL: ${config.supabase.url ? '✅ Set' : '❌ Missing'}`);
@@ -61,4 +65,5 @@ export const getConfig = () => {
   console.log(`   Environment: ${config.appEnv}`);
   
   return config;
+
 };

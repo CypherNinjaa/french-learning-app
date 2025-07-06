@@ -3,7 +3,9 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TestQuestion, TestAttempt, LessonTest } from '../types/LearningTypes';
+
 import { LearningService } from './LearningService';
+
 
 export interface LocalTestAttempt {
   id: string;
@@ -66,6 +68,7 @@ export class LocalTestService {
       
       // Check if the lesson was unlocked (has unlockedAt timestamp)
       return !!progressData.unlockedAt;
+
     } catch (error) {
       console.error('Error checking lesson unlock status:', error);
       return false;
@@ -84,6 +87,7 @@ export class LocalTestService {
       
       // Update next lesson as unlocked
       allProgress[nextLessonId] = {
+
         userId,
         lessonId: nextLessonId,
         bookId: 1, // Default book ID
@@ -93,6 +97,7 @@ export class LocalTestService {
         totalAttempts: 0,
         unlockedAt: new Date().toISOString(),
         lastAccessedAt: new Date().toISOString(),
+
       };
 
       await this.saveAllLessonProgress(userId, allProgress);
@@ -117,6 +122,7 @@ export class LocalTestService {
       
       // Unlock first lesson
       allProgress[1] = {
+
         userId,
         lessonId: 1,
         bookId,
@@ -126,6 +132,7 @@ export class LocalTestService {
         totalAttempts: 0,
         unlockedAt: new Date().toISOString(),
         lastAccessedAt: new Date().toISOString(),
+
       };
 
       await this.saveAllLessonProgress(userId, allProgress);
@@ -159,6 +166,7 @@ export class LocalTestService {
         userId,
         lessonId,
         testId,
+
         attemptNumber,
         answers: [],
         score: 0,
@@ -166,6 +174,7 @@ export class LocalTestService {
         correctAnswers: 0,
         passed: false,
         startedAt: new Date().toISOString(),
+
       };
 
       // Save attempt
@@ -198,6 +207,7 @@ export class LocalTestService {
       if (!attempt) {
         throw new Error('Test attempt not found');
       }
+
 
       // Get questions from the learning service for scoring
       const testsResponse = await LearningService.getLessonTests(attempt.lessonId);
@@ -234,6 +244,7 @@ export class LocalTestService {
       attempt.passed = passed;
       attempt.completedAt = new Date().toISOString();
       attempt.timeTakenMinutes = Math.round((Date.now() - new Date(attempt.startedAt).getTime()) / 60000);
+
       
       // Save updated attempt
       await this.saveTestAttempt(attempt);
@@ -299,6 +310,7 @@ export class LocalTestService {
     const allProgress = await this.getAllLessonProgress(userId);
     
     return allProgress[lessonId] || {
+
       userId,
       lessonId,
       bookId: 0, // Default value, would need to be set properly
@@ -308,6 +320,7 @@ export class LocalTestService {
       totalAttempts: 0,
       unlockedAt: lessonId === 1 ? new Date().toISOString() : '',
       lastAccessedAt: new Date().toISOString(),
+
     };
   }
 
@@ -340,6 +353,7 @@ export class LocalTestService {
     try {
       const allProgress = await this.getAllLessonProgress(userId);
       const current = allProgress[lessonId] || {
+
         userId,
         lessonId,
         bookId: 0, // We'll need to get this from the lesson
@@ -357,6 +371,7 @@ export class LocalTestService {
       current.bestScore = Math.max(current.bestScore, score);
       current.totalAttempts += 1;
       current.lastAccessedAt = new Date().toISOString();
+
 
       allProgress[lessonId] = current;
       await this.saveAllLessonProgress(userId, allProgress);

@@ -155,10 +155,12 @@ Current topic: ${context.topic}
 User level: ${context.userLevel}
 
 Guidelines:
+
 - If user level is BEGINNER: Respond primarily in English with simple French phrases. Always provide English translations in parentheses for French words.
 - If user level is INTERMEDIATE: Use 50% French and 50% English. Translate complex French words and phrases.
 - If user level is ADVANCED: Respond mostly in French with occasional English explanations for complex grammar concepts.
 - If user explicitly asks to speak in English, respect their request regardless of level
+
 - Keep responses appropriate for ${context.userLevel} level
 - Be encouraging and supportive
 - Ask follow-up questions to keep the conversation flowing
@@ -175,9 +177,11 @@ ${userMessage ? `Respond to: "${userMessage}"` : `Start a conversation about ${c
       const messages = [
         { role: 'system' as const, content: systemPrompt },
         { role: 'user' as const, content: userMessage || `Let's talk about ${context.topic}` },
+
       ];
       
       const content = await groqService.makeCustomRequest(messages, { temperature: 0.8 });
+
       return content || 'Bonjour! Comment allez-vous?';
     } catch (error) {
       console.error('Error generating contextual response:', error);

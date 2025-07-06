@@ -15,7 +15,9 @@ export const AI_CONFIG = {
   
   // Default AI model settings
   MODEL_CONFIG: {
+
     model: 'llama3-8b-8192',
+
     temperature: 0.7,
     maxTokens: 1000,
     topP: 0.9,

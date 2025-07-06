@@ -25,7 +25,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 		// For tab screens, navigate within the tab navigator
 		if (
 			[
+
 				"Books",
+
 				"Practice",
 				"Vocabulary",
 				"PronunciationTest",
@@ -147,7 +149,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 					<View style={styles.modernActionsGrid}>
 						<TouchableOpacity
 							style={[styles.modernActionCard, { backgroundColor: "#2196F3" }]}
+
 							onPress={() => navigateToScreen("Books")}
+
 						>
 							<View style={styles.actionIconContainer}>
 								<Ionicons name="play-circle" size={32} color="#ffffff" />

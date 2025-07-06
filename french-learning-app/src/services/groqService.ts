@@ -32,6 +32,8 @@ class GroqAIService {
   private availableModels: string[] = [
     'llama3-8b-8192',
     'llama3-70b-8192', 
+
+
     'gemma-7b-it'
   ];
   private currentModelIndex: number = 0;
@@ -103,7 +105,9 @@ class GroqAIService {
     try {
       this.incrementRequestCount();      const requestBody = {
         messages,
+
         model: 'llama3-8b-8192', // Using supported model
+
         temperature: options.temperature || 0.7,
         max_tokens: options.maxTokens || 1000,
         top_p: options.topP || 0.9,
@@ -314,10 +318,12 @@ class GroqAIService {
         role: 'system',
         content: `You are a French language teacher. Generate ${count} ${questionType} questions about ${topic} for ${difficulty} level students. 
 
+
 LANGUAGE ADAPTATION:
 - For BEGINNER level: Use English for questions and explanations, include French translations in parentheses
 - For INTERMEDIATE level: Mix English and French, translate complex terms  
 - For ADVANCED level: Use mostly French with English only for complex grammar explanations
+
 
 IMPORTANT: You must respond with ONLY a valid JSON array. Do not include any explanatory text, introductions, or formatting. 
 
