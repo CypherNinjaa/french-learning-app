@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
 	View,
 	Text,
@@ -13,9 +13,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "../constants/theme";
 import { useAuth } from "../contexts/AuthContext";
 import { LearningService } from "../services/LearningService";
+import { LocalTestService } from "../services/LocalTestService";
 import {
 	LearningBook,
 	LearningLesson,
@@ -47,6 +49,15 @@ export const BookDetailScreen: React.FC<BookDetailScreenProps> = ({
 		loadBookDetails();
 	}, [bookId]);
 
+	// Refresh lessons when screen comes into focus (after returning from a lesson)
+	useFocusEffect(
+		useCallback(() => {
+			if (user?.id) {
+				loadBookDetails();
+			}
+		}, [user?.id, bookId])
+	);
+
 	const loadBookDetails = async () => {
 		try {
 			setLoading(true);
@@ -56,6 +67,7 @@ export const BookDetailScreen: React.FC<BookDetailScreenProps> = ({
 			if (bookResponse.success && bookResponse.data) {
 				setBook(bookResponse.data);
 			}
+
 			// Load lessons for this book
 			console.log(
 				"📚 [BookDetailScreen] Loading lessons for book:",
@@ -72,18 +84,84 @@ export const BookDetailScreen: React.FC<BookDetailScreenProps> = ({
 				JSON.stringify(lessonsResponse, null, 2)
 			);
 
-			if (lessonsResponse.success && lessonsResponse.data) {
-				setLessons(lessonsResponse.data);
-				console.log(
-					`✅ [BookDetailScreen] Loaded ${lessonsResponse.data.length} lessons for user view`
+			if (lessonsResponse.success && lessonsResponse.data && user?.id) {
+				// Initialize first lesson if needed
+				await LocalTestService.initializeFirstLesson(user.id, bookId);
+
+				// Process lessons to set lock status based on local progress
+				const lessonsWithLockStatus = await Promise.all(
+					lessonsResponse.data.map(async (lesson, index) => {
+						const isUnlocked = await LocalTestService.isLessonUnlocked(
+							user.id,
+							lesson.id
+						);
+						const localProgress = await LocalTestService.getLessonProgressById(
+							user.id,
+							lesson.id
+						);
+
+						return {
+							...lesson,
+							is_locked: !isUnlocked,
+							user_progress: localProgress
+								? {
+										id: 0, // Temporary ID for local progress
+										user_id: user.id,
+										lesson_id: lesson.id,
+										book_id: bookId,
+										status: localProgress.status,
+										completion_percentage: localProgress.testPassed
+											? 100
+											: localProgress.status === "completed"
+											? 90
+											: localProgress.status === "in_progress"
+											? 50
+											: 0,
+										content_viewed: localProgress.status !== "not_started",
+										examples_practiced:
+											localProgress.status === "completed" ||
+											localProgress.testPassed,
+										test_attempts: localProgress.totalAttempts,
+										best_test_score: localProgress.bestScore,
+										latest_test_score: localProgress.bestScore,
+										test_passed: localProgress.testPassed,
+										started_at: localProgress.unlockedAt,
+										completed_at: localProgress.testPassed
+											? localProgress.lastAccessedAt
+											: undefined,
+										last_accessed_at: localProgress.lastAccessedAt,
+										total_study_time_minutes: 0,
+										notes: undefined,
+										bookmarks: [],
+										created_at: localProgress.unlockedAt,
+										updated_at: localProgress.lastAccessedAt,
+								  }
+								: undefined,
+						};
+					})
 				);
-				lessonsResponse.data.forEach((lesson, index) => {
+
+				setLessons(lessonsWithLockStatus);
+				console.log(
+					`✅ [BookDetailScreen] Loaded ${lessonsWithLockStatus.length} lessons with lock status for user view`
+				);
+				lessonsWithLockStatus.forEach((lesson, index) => {
 					console.log(
-						`  ${index + 1}. ${lesson.title} (ID: ${lesson.id}, Published: ${
-							lesson.is_published
-						}, Active: ${lesson.is_active})`
+						`  ${index + 1}. ${lesson.title} (ID: ${lesson.id}, Locked: ${
+							lesson.is_locked
+						}, Status: ${lesson.user_progress?.status || "not_started"})`
 					);
 				});
+			} else if (lessonsResponse.success && lessonsResponse.data) {
+				// No user, just show lessons as-is (all locked except first)
+				const lessonsWithDefaultLock = lessonsResponse.data.map(
+					(lesson, index) => ({
+						...lesson,
+						is_locked: index !== 0, // Only first lesson unlocked by default
+						user_progress: undefined,
+					})
+				);
+				setLessons(lessonsWithDefaultLock);
 			} else {
 				console.error(
 					"❌ [BookDetailScreen] Failed to load lessons:",

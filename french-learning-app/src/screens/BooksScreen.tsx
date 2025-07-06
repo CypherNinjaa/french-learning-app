@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
 	View,
 	Text,
@@ -14,9 +14,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "../constants/theme";
 import { useAuth } from "../contexts/AuthContext";
 import { LearningService } from "../services/LearningService";
+import { LocalTestService } from "../services/LocalTestService";
 import { LearningBook, DifficultyLevel } from "../types/LearningTypes";
 
 const { width } = Dimensions.get("window");
@@ -29,7 +31,9 @@ interface BooksScreenProps {
 export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 	const { user } = useAuth();
 	const [books, setBooks] = useState<LearningBook[]>([]);
-	const [userProgress, setUserProgress] = useState<any[]>([]);
+	const [booksWithCompletion, setBooksWithCompletion] = useState<
+		(LearningBook & { completion_percentage?: number; is_unlocked?: boolean })[]
+	>([]);
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -42,8 +46,20 @@ export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 		loadBooks();
 	}, []);
 
-	// Check if a difficulty level is unlocked for the user
-	const isLevelUnlocked = (difficulty: DifficultyLevel) => {
+	// Refresh books when screen comes into focus (after potentially completing lessons)
+	useFocusEffect(
+		useCallback(() => {
+			if (user?.id) {
+				loadBooks();
+			}
+		}, [user?.id, selectedDifficulty])
+	);
+
+	// Check if a difficulty level is unlocked for the user based on local progress
+	const isLevelUnlocked = async (
+		difficulty: DifficultyLevel
+	): Promise<boolean> => {
+		if (!user?.id) return difficulty === "beginner"; // Only beginner unlocked when not logged in
 		if (difficulty === "beginner") return true; // Beginner is always unlocked
 
 		if (difficulty === "intermediate") {
@@ -51,15 +67,20 @@ export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 			const beginnerBooks = books.filter(
 				(book) => book.difficulty_level === "beginner"
 			);
-			const completedBeginnerBooks = userProgress.filter(
-				(progress) =>
-					progress.book?.difficulty_level === "beginner" &&
-					progress.progress_percentage >= 80
-			);
-			return (
-				beginnerBooks.length > 0 &&
-				completedBeginnerBooks.length >= beginnerBooks.length
-			);
+
+			let allBeginnerCompleted = true;
+			for (const book of beginnerBooks) {
+				const completion = await LocalTestService.getBookCompletionPercentage(
+					user.id,
+					book.id,
+					book.lesson_count || 5 // Default if not specified
+				);
+				if (completion < 80) {
+					allBeginnerCompleted = false;
+					break;
+				}
+			}
+			return beginnerBooks.length > 0 && allBeginnerCompleted;
 		}
 
 		if (difficulty === "advanced") {
@@ -67,28 +88,33 @@ export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 			const intermediateBooks = books.filter(
 				(book) => book.difficulty_level === "intermediate"
 			);
-			const completedIntermediateBooks = userProgress.filter(
-				(progress) =>
-					progress.book?.difficulty_level === "intermediate" &&
-					progress.progress_percentage >= 80
-			);
-			return (
-				intermediateBooks.length > 0 &&
-				completedIntermediateBooks.length >= intermediateBooks.length
-			);
+
+			let allIntermediateCompleted = true;
+			for (const book of intermediateBooks) {
+				const completion = await LocalTestService.getBookCompletionPercentage(
+					user.id,
+					book.id,
+					book.lesson_count || 5 // Default if not specified
+				);
+				if (completion < 80) {
+					allIntermediateCompleted = false;
+					break;
+				}
+			}
+			return intermediateBooks.length > 0 && allIntermediateCompleted;
 		}
 
 		return false;
 	};
 
 	// Check if a specific book is unlocked
-	const isBookUnlocked = (book: LearningBook) => {
-		return isLevelUnlocked(book.difficulty_level);
+	const isBookUnlocked = async (book: LearningBook): Promise<boolean> => {
+		return await isLevelUnlocked(book.difficulty_level);
 	};
 
 	// Filtered books based on search and difficulty
 	const filteredBooks = useMemo(() => {
-		return books.filter((book) => {
+		return booksWithCompletion.filter((book) => {
 			const matchesSearch =
 				book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				book.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -98,7 +124,7 @@ export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 
 			return matchesSearch && matchesDifficulty;
 		});
-	}, [books, searchQuery, selectedDifficulty]);
+	}, [booksWithCompletion, searchQuery, selectedDifficulty]);
 
 	const loadBooks = async () => {
 		try {
@@ -111,19 +137,35 @@ export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 
 			if (response.success && response.data) {
 				setBooks(response.data);
-			}
 
-			// Load user progress for level unlocking
-			if (user?.id) {
-				try {
-					const progressResponse = await LearningService.getAllUserProgress(
-						user.id
+				// Process books with completion percentage and unlock status
+				if (user?.id) {
+					const booksWithDetails = await Promise.all(
+						response.data.map(async (book) => {
+							const completion =
+								await LocalTestService.getBookCompletionPercentage(
+									user.id!,
+									book.id,
+									book.lesson_count || 5
+								);
+							const isUnlocked = await isLevelUnlocked(book.difficulty_level);
+
+							return {
+								...book,
+								completion_percentage: completion,
+								is_unlocked: isUnlocked,
+							};
+						})
 					);
-					if (progressResponse.success && progressResponse.data) {
-						setUserProgress(progressResponse.data);
-					}
-				} catch (progressError) {
-					console.error("Error loading user progress:", progressError);
+					setBooksWithCompletion(booksWithDetails);
+				} else {
+					// No user, just mark beginner as unlocked
+					const booksWithDefaults = response.data.map((book) => ({
+						...book,
+						completion_percentage: 0,
+						is_unlocked: book.difficulty_level === "beginner",
+					}));
+					setBooksWithCompletion(booksWithDefaults);
 				}
 			}
 		} catch (error) {
@@ -171,8 +213,13 @@ export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 		}
 	};
 
-	const renderBookCard = (book: LearningBook) => {
-		const isUnlocked = isBookUnlocked(book);
+	const renderBookCard = (
+		book: LearningBook & {
+			completion_percentage?: number;
+			is_unlocked?: boolean;
+		}
+	) => {
+		const isUnlocked = book.is_unlocked ?? false;
 		const cardColors = isUnlocked
 			? getDifficultyColor(book.difficulty_level)
 			: (["#757575", "#9E9E9E"] as const); // Gray colors for locked books
@@ -252,21 +299,22 @@ export const BooksScreen: React.FC<BooksScreenProps> = ({ navigation }) => {
 						</View>
 
 						{/* Progress Bar */}
-						{book.progress_percentage !== undefined && (
-							<View style={styles.progressContainer}>
-								<View style={styles.progressBar}>
-									<View
-										style={[
-											styles.progressFill,
-											{ width: `${book.progress_percentage}%` },
-										]}
-									/>
+						{book.completion_percentage !== undefined &&
+							book.completion_percentage > 0 && (
+								<View style={styles.progressContainer}>
+									<View style={styles.progressBar}>
+										<View
+											style={[
+												styles.progressFill,
+												{ width: `${book.completion_percentage}%` },
+											]}
+										/>
+									</View>
+									<Text style={styles.progressText}>
+										{Math.round(book.completion_percentage)}%
+									</Text>
 								</View>
-								<Text style={styles.progressText}>
-									{Math.round(book.progress_percentage)}%
-								</Text>
-							</View>
-						)}
+							)}
 
 						{/* Duration */}
 						<View style={styles.durationContainer}>

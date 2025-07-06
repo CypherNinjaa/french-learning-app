@@ -49,7 +49,7 @@ interface QuestionFormData {
 	test_id: number;
 	question_text: string;
 	question_type: QuestionType;
-	options: string[];
+	options: { text: string; is_correct: boolean }[];
 	correct_answer: string;
 	explanation?: string;
 	points: number;
@@ -66,11 +66,13 @@ export const TestManagementScreen: React.FC<TestManagementScreenProps> = ({
 	const [lessons, setLessons] = useState<LearningLesson[]>([]);
 	const [showTestModal, setShowTestModal] = useState(false);
 	const [showQuestionModal, setShowQuestionModal] = useState(false);
+	const [showQuestionFormModal, setShowQuestionFormModal] = useState(false);
 	const [editingTest, setEditingTest] = useState<LessonTest | null>(null);
 	const [editingQuestion, setEditingQuestion] = useState<TestQuestion | null>(
 		null
 	);
 	const [selectedTest, setSelectedTest] = useState<LessonTest | null>(null);
+	const [questions, setQuestions] = useState<TestQuestion[]>([]);
 	const [testFormData, setTestFormData] = useState<TestFormData>({
 		lesson_id: route.params?.lessonId || 0,
 		title: "",
@@ -81,7 +83,12 @@ export const TestManagementScreen: React.FC<TestManagementScreenProps> = ({
 		test_id: 0,
 		question_text: "",
 		question_type: "multiple_choice",
-		options: ["", "", "", ""],
+		options: [
+			{ text: "", is_correct: false },
+			{ text: "", is_correct: false },
+			{ text: "", is_correct: false },
+			{ text: "", is_correct: false },
+		],
 		correct_answer: "",
 		explanation: "",
 		points: 1,
@@ -250,6 +257,194 @@ export const TestManagementScreen: React.FC<TestManagementScreenProps> = ({
 		});
 	};
 
+	const resetQuestionForm = () => {
+		setQuestionFormData({
+			test_id: selectedTest?.id || 0,
+			question_text: "",
+			question_type: "multiple_choice",
+			options: [
+				{ text: "", is_correct: false },
+				{ text: "", is_correct: false },
+				{ text: "", is_correct: false },
+				{ text: "", is_correct: false },
+			],
+			correct_answer: "",
+			explanation: "",
+			points: 1,
+			order_index: questions.length,
+		});
+	};
+
+	const viewTestQuestions = async (test: LessonTest) => {
+		try {
+			setSelectedTest(test);
+			console.log(
+				`📋 [TestManagementScreen] Loading questions for test ${test.id}...`
+			);
+
+			const response = await LearningService.getTestQuestions(test.id);
+			if (response.success && response.data) {
+				setQuestions(response.data);
+				console.log(
+					`✅ [TestManagementScreen] Loaded ${response.data.length} questions`
+				);
+			} else {
+				console.error(
+					"❌ [TestManagementScreen] Failed to load questions:",
+					response.error
+				);
+				setQuestions([]);
+			}
+			setShowQuestionModal(true);
+		} catch (error) {
+			console.error(
+				"❌ [TestManagementScreen] Error loading questions:",
+				error
+			);
+			Alert.alert("Error", "Failed to load questions. Please try again.");
+		}
+	};
+
+	const handleCreateQuestion = async () => {
+		if (!selectedTest) return;
+
+		try {
+			console.log("📝 [TestManagementScreen] Creating question...");
+
+			const questionData: CreateQuestionDto = {
+				test_id: selectedTest.id,
+				question_text: questionFormData.question_text,
+				question_type: questionFormData.question_type,
+				options: questionFormData.options.filter(
+					(option) => option.text.trim() !== ""
+				),
+				correct_answer: questionFormData.correct_answer,
+				explanation: questionFormData.explanation,
+				points: questionFormData.points,
+				order_index: questionFormData.order_index,
+			};
+
+			const response = await LearningService.createQuestion(questionData);
+
+			if (response.success) {
+				console.log("✅ [TestManagementScreen] Question created successfully");
+				Alert.alert("Success", "Question created successfully!");
+				setShowQuestionFormModal(false);
+				resetQuestionForm();
+				// Reload questions
+				viewTestQuestions(selectedTest);
+			} else {
+				console.error(
+					"❌ [TestManagementScreen] Failed to create question:",
+					response.error
+				);
+				Alert.alert("Error", response.error || "Failed to create question");
+			}
+		} catch (error) {
+			console.error(
+				"❌ [TestManagementScreen] Error creating question:",
+				error
+			);
+			Alert.alert("Error", "Failed to create question. Please try again.");
+		}
+	};
+
+	const handleUpdateQuestion = async () => {
+		if (!editingQuestion || !selectedTest) return;
+
+		try {
+			console.log("📝 [TestManagementScreen] Updating question...");
+
+			const updateData: UpdateQuestionDto = {
+				question_text: questionFormData.question_text,
+				question_type: questionFormData.question_type,
+				options: questionFormData.options.filter(
+					(option) => option.text.trim() !== ""
+				),
+				correct_answer: questionFormData.correct_answer,
+				explanation: questionFormData.explanation,
+				points: questionFormData.points,
+				order_index: questionFormData.order_index,
+			};
+
+			const response = await LearningService.updateQuestion(
+				editingQuestion.id,
+				updateData
+			);
+
+			if (response.success) {
+				console.log("✅ [TestManagementScreen] Question updated successfully");
+				Alert.alert("Success", "Question updated successfully!");
+				setShowQuestionFormModal(false);
+				setEditingQuestion(null);
+				resetQuestionForm();
+				// Reload questions
+				viewTestQuestions(selectedTest);
+			} else {
+				console.error(
+					"❌ [TestManagementScreen] Failed to update question:",
+					response.error
+				);
+				Alert.alert("Error", response.error || "Failed to update question");
+			}
+		} catch (error) {
+			console.error(
+				"❌ [TestManagementScreen] Error updating question:",
+				error
+			);
+			Alert.alert("Error", "Failed to update question. Please try again.");
+		}
+	};
+
+	const handleDeleteQuestion = async (questionId: number) => {
+		Alert.alert(
+			"Delete Question",
+			"Are you sure you want to delete this question?",
+			[
+				{ text: "Cancel", style: "cancel" },
+				{
+					text: "Delete",
+					style: "destructive",
+					onPress: async () => {
+						try {
+							console.log("🗑️ [TestManagementScreen] Deleting question...");
+							const response = await LearningService.deleteQuestion(questionId);
+
+							if (response.success) {
+								console.log(
+									"✅ [TestManagementScreen] Question deleted successfully"
+								);
+								Alert.alert("Success", "Question deleted successfully!");
+								// Reload questions
+								if (selectedTest) {
+									viewTestQuestions(selectedTest);
+								}
+							} else {
+								console.error(
+									"❌ [TestManagementScreen] Failed to delete question:",
+									response.error
+								);
+								Alert.alert(
+									"Error",
+									response.error || "Failed to delete question"
+								);
+							}
+						} catch (error) {
+							console.error(
+								"❌ [TestManagementScreen] Error deleting question:",
+								error
+							);
+							Alert.alert(
+								"Error",
+								"Failed to delete question. Please try again."
+							);
+						}
+					},
+				},
+			]
+		);
+	};
+
 	const openTestModal = (test?: LessonTest) => {
 		if (test) {
 			setEditingTest(test);
@@ -264,6 +459,31 @@ export const TestManagementScreen: React.FC<TestManagementScreenProps> = ({
 			resetTestForm();
 		}
 		setShowTestModal(true);
+	};
+
+	const openQuestionModal = (question?: TestQuestion) => {
+		if (question) {
+			setEditingQuestion(question);
+			setQuestionFormData({
+				test_id: question.test_id,
+				question_text: question.question_text,
+				question_type: question.question_type,
+				options: question.options || [
+					{ text: "", is_correct: false },
+					{ text: "", is_correct: false },
+					{ text: "", is_correct: false },
+					{ text: "", is_correct: false },
+				],
+				correct_answer: question.correct_answer,
+				explanation: question.explanation || "",
+				points: question.points,
+				order_index: question.order_index,
+			});
+		} else {
+			setEditingQuestion(null);
+			resetQuestionForm();
+		}
+		setShowQuestionFormModal(true);
 	};
 
 	if (loading) {
@@ -309,6 +529,16 @@ export const TestManagementScreen: React.FC<TestManagementScreenProps> = ({
 								<View style={styles.testHeader}>
 									<Text style={styles.testTitle}>{test.title}</Text>
 									<View style={styles.testActions}>
+										<TouchableOpacity
+											style={styles.actionButton}
+											onPress={() => viewTestQuestions(test)}
+										>
+											<Ionicons
+												name="list"
+												size={20}
+												color={theme.colors.secondary}
+											/>
+										</TouchableOpacity>
 										<TouchableOpacity
 											style={styles.actionButton}
 											onPress={() => openTestModal(test)}
@@ -442,6 +672,303 @@ export const TestManagementScreen: React.FC<TestManagementScreenProps> = ({
 									})
 								}
 								placeholder="65"
+								keyboardType="numeric"
+								placeholderTextColor={theme.colors.textSecondary}
+							/>
+						</View>
+					</ScrollView>
+				</SafeAreaView>
+			</Modal>
+
+			{/* Question Management Modal */}
+			<Modal
+				visible={showQuestionModal}
+				animationType="slide"
+				presentationStyle="pageSheet"
+			>
+				<SafeAreaView style={styles.modalContainer}>
+					<View style={styles.modalHeader}>
+						<TouchableOpacity
+							style={styles.modalCloseButton}
+							onPress={() => {
+								setShowQuestionModal(false);
+								setSelectedTest(null);
+								setEditingQuestion(null);
+								setShowQuestionFormModal(false);
+								resetQuestionForm();
+							}}
+						>
+							<Ionicons name="close" size={24} color={theme.colors.text} />
+						</TouchableOpacity>
+						<Text style={styles.modalTitle}>
+							{selectedTest?.title} - Questions
+						</Text>
+						<TouchableOpacity
+							style={styles.modalSaveButton}
+							onPress={() => openQuestionModal()}
+						>
+							<Text style={styles.modalSaveButtonText}>Add Question</Text>
+						</TouchableOpacity>
+					</View>
+
+					<ScrollView style={styles.modalContent}>
+						{questions.length === 0 ? (
+							<View style={styles.emptyState}>
+								<Ionicons
+									name="help-outline"
+									size={64}
+									color={theme.colors.textSecondary}
+								/>
+								<Text style={styles.emptyStateTitle}>No questions yet</Text>
+								<Text style={styles.emptyStateDescription}>
+									Add questions to this test
+								</Text>
+							</View>
+						) : (
+							<View style={styles.questionList}>
+								{questions.map((question, index) => (
+									<View key={question.id} style={styles.questionCard}>
+										<View style={styles.questionHeader}>
+											<Text style={styles.questionTitle}>
+												Q{index + 1}: {question.question_text}
+											</Text>
+											<View style={styles.questionActions}>
+												<TouchableOpacity
+													style={styles.actionButton}
+													onPress={() => openQuestionModal(question)}
+												>
+													<Ionicons
+														name="pencil"
+														size={20}
+														color={theme.colors.primary}
+													/>
+												</TouchableOpacity>
+												<TouchableOpacity
+													style={styles.actionButton}
+													onPress={() => handleDeleteQuestion(question.id)}
+												>
+													<Ionicons
+														name="trash"
+														size={20}
+														color={theme.colors.error}
+													/>
+												</TouchableOpacity>
+											</View>
+										</View>
+										<Text style={styles.questionInfo}>
+											Type: {question.question_type} | Points: {question.points}
+										</Text>
+										{question.options && question.options.length > 0 && (
+											<View style={styles.optionsList}>
+												{question.options.map((option, optionIndex) => (
+													<Text
+														key={optionIndex}
+														style={[
+															styles.optionText,
+															option.is_correct && styles.correctOption,
+														]}
+													>
+														{String.fromCharCode(65 + optionIndex)}:{" "}
+														{option.text}
+														{option.is_correct && " ✓"}
+													</Text>
+												))}
+											</View>
+										)}
+									</View>
+								))}
+							</View>
+						)}
+					</ScrollView>
+
+					{/* Add Question FAB in question modal */}
+					{selectedTest && (
+						<FloatingActionButton
+							onPress={() => openQuestionModal()}
+							icon="add"
+							style={styles.fab}
+						/>
+					)}
+				</SafeAreaView>
+			</Modal>
+
+			{/* Question Form Modal */}
+			<Modal
+				visible={showQuestionFormModal}
+				animationType="slide"
+				presentationStyle="pageSheet"
+			>
+				<SafeAreaView style={styles.modalContainer}>
+					<View style={styles.modalHeader}>
+						<TouchableOpacity
+							style={styles.modalCloseButton}
+							onPress={() => {
+								setShowQuestionFormModal(false);
+								setEditingQuestion(null);
+								resetQuestionForm();
+							}}
+						>
+							<Ionicons name="close" size={24} color={theme.colors.text} />
+						</TouchableOpacity>
+						<Text style={styles.modalTitle}>
+							{editingQuestion ? "Edit Question" : "Add Question"}
+						</Text>
+						<TouchableOpacity
+							style={styles.modalSaveButton}
+							onPress={
+								editingQuestion ? handleUpdateQuestion : handleCreateQuestion
+							}
+						>
+							<Text style={styles.modalSaveButtonText}>
+								{editingQuestion ? "Update" : "Add"}
+							</Text>
+						</TouchableOpacity>
+					</View>
+
+					<ScrollView style={styles.modalContent}>
+						<View style={styles.formGroup}>
+							<Text style={styles.formLabel}>Question Text</Text>
+							<TextInput
+								style={[styles.textInput, styles.multilineInput]}
+								value={questionFormData.question_text}
+								onChangeText={(text) =>
+									setQuestionFormData({
+										...questionFormData,
+										question_text: text,
+									})
+								}
+								placeholder="Enter the question..."
+								placeholderTextColor={theme.colors.textSecondary}
+								multiline
+								numberOfLines={3}
+							/>
+						</View>
+
+						<View style={styles.formGroup}>
+							<Text style={styles.formLabel}>Question Type</Text>
+							<View style={styles.pickerContainer}>
+								<Picker
+									selectedValue={questionFormData.question_type}
+									onValueChange={(value) =>
+										setQuestionFormData({
+											...questionFormData,
+											question_type: value,
+										})
+									}
+									style={styles.picker}
+								>
+									<Picker.Item
+										label="Multiple Choice"
+										value="multiple_choice"
+									/>
+									<Picker.Item label="True/False" value="true_false" />
+									<Picker.Item label="Fill in the Blank" value="fill_blank" />
+									<Picker.Item label="Translation" value="translation" />
+								</Picker>
+							</View>
+						</View>
+
+						{questionFormData.question_type === "multiple_choice" && (
+							<View style={styles.formGroup}>
+								<Text style={styles.formLabel}>Answer Options</Text>
+								{questionFormData.options.map((option, index) => (
+									<View key={index} style={styles.optionInputContainer}>
+										<TextInput
+											style={[styles.textInput, styles.optionInput]}
+											value={option.text}
+											onChangeText={(text) => {
+												const newOptions = [...questionFormData.options];
+												newOptions[index] = { ...newOptions[index], text };
+												setQuestionFormData({
+													...questionFormData,
+													options: newOptions,
+												});
+											}}
+											placeholder={`Option ${String.fromCharCode(65 + index)}`}
+											placeholderTextColor={theme.colors.textSecondary}
+										/>
+										<TouchableOpacity
+											style={[
+												styles.correctToggle,
+												option.is_correct && styles.correctToggleActive,
+											]}
+											onPress={() => {
+												const newOptions = [...questionFormData.options];
+												// Only allow one correct answer for multiple choice
+												newOptions.forEach((opt, i) => {
+													opt.is_correct = i === index;
+												});
+												setQuestionFormData({
+													...questionFormData,
+													options: newOptions,
+												});
+											}}
+										>
+											<Ionicons
+												name={
+													option.is_correct
+														? "checkmark-circle"
+														: "ellipse-outline"
+												}
+												size={24}
+												color={
+													option.is_correct
+														? theme.colors.success
+														: theme.colors.textSecondary
+												}
+											/>
+										</TouchableOpacity>
+									</View>
+								))}
+							</View>
+						)}
+
+						<View style={styles.formGroup}>
+							<Text style={styles.formLabel}>Correct Answer</Text>
+							<TextInput
+								style={styles.textInput}
+								value={questionFormData.correct_answer}
+								onChangeText={(text) =>
+									setQuestionFormData({
+										...questionFormData,
+										correct_answer: text,
+									})
+								}
+								placeholder="Enter the correct answer..."
+								placeholderTextColor={theme.colors.textSecondary}
+							/>
+						</View>
+
+						<View style={styles.formGroup}>
+							<Text style={styles.formLabel}>Explanation (Optional)</Text>
+							<TextInput
+								style={[styles.textInput, styles.multilineInput]}
+								value={questionFormData.explanation}
+								onChangeText={(text) =>
+									setQuestionFormData({
+										...questionFormData,
+										explanation: text,
+									})
+								}
+								placeholder="Explain the correct answer..."
+								placeholderTextColor={theme.colors.textSecondary}
+								multiline
+								numberOfLines={3}
+							/>
+						</View>
+
+						<View style={styles.formGroup}>
+							<Text style={styles.formLabel}>Points</Text>
+							<TextInput
+								style={styles.textInput}
+								value={questionFormData.points.toString()}
+								onChangeText={(text) =>
+									setQuestionFormData({
+										...questionFormData,
+										points: parseInt(text) || 1,
+									})
+								}
+								placeholder="1"
 								keyboardType="numeric"
 								placeholderTextColor={theme.colors.textSecondary}
 							/>
@@ -617,5 +1144,70 @@ const styles = StyleSheet.create({
 		position: "absolute",
 		bottom: 24,
 		right: 24,
+	},
+	questionList: {
+		gap: 12,
+	},
+	questionCard: {
+		backgroundColor: theme.colors.surface,
+		borderRadius: 12,
+		padding: 16,
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+	},
+	questionHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "flex-start",
+		marginBottom: 8,
+	},
+	questionTitle: {
+		fontSize: 16,
+		fontWeight: "600",
+		color: theme.colors.text,
+		flex: 1,
+		marginRight: 8,
+	},
+	questionActions: {
+		flexDirection: "row",
+		gap: 8,
+	},
+	questionInfo: {
+		fontSize: 14,
+		color: theme.colors.textSecondary,
+		marginBottom: 8,
+	},
+	optionsList: {
+		marginTop: 8,
+		gap: 4,
+	},
+	optionText: {
+		fontSize: 14,
+		color: theme.colors.text,
+		paddingVertical: 2,
+	},
+	correctOption: {
+		fontWeight: "600",
+		color: theme.colors.success,
+	},
+	multilineInput: {
+		height: 80,
+		textAlignVertical: "top",
+	},
+	optionInputContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 12,
+		gap: 8,
+	},
+	optionInput: {
+		flex: 1,
+	},
+	correctToggle: {
+		padding: 4,
+	},
+	correctToggleActive: {
+		backgroundColor: theme.colors.success + "20",
+		borderRadius: 20,
 	},
 });
