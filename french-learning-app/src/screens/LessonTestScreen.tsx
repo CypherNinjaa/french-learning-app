@@ -16,6 +16,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { theme } from "../constants/theme";
 import { useAuth } from "../contexts/AuthContext";
 import { LearningService } from "../services/LearningService";
+import {
+	LocalTestService,
+	LocalTestAttempt,
+} from "../services/LocalTestService";
 import { supabase } from "../services/supabase";
 import {
 	LessonTest,
@@ -51,7 +55,7 @@ export const LessonTestScreen: React.FC<LessonTestScreenProps> = ({
 	const [showResults, setShowResults] = useState(false);
 	const [score, setScore] = useState(0);
 	const [testCompleted, setTestCompleted] = useState(false);
-	const [testAttempt, setTestAttempt] = useState<TestAttempt | null>(null);
+	const [testAttempt, setTestAttempt] = useState<LocalTestAttempt | null>(null);
 	const [startTime, setStartTime] = useState<Date>(new Date());
 
 	useEffect(() => {
@@ -74,9 +78,9 @@ export const LessonTestScreen: React.FC<LessonTestScreenProps> = ({
 				if (questionsResponse.success && questionsResponse.data) {
 					setQuestions(questionsResponse.data);
 
-					// Create a test attempt when questions are loaded
+					// Create a local test attempt
 					if (user?.id) {
-						await createTestAttempt(testData.id);
+						await createLocalTestAttempt(testData.id);
 					}
 				}
 			}
@@ -88,43 +92,22 @@ export const LessonTestScreen: React.FC<LessonTestScreenProps> = ({
 		}
 	};
 
-	const createTestAttempt = async (testId: number) => {
+	const createLocalTestAttempt = async (testId: number) => {
 		try {
-			// Get the count of previous attempts to determine attempt_number
-			const { count: previousAttempts, error: countError } = await supabase
-				.from("test_attempts")
-				.select("*", { count: "exact", head: true })
-				.eq("user_id", user?.id)
-				.eq("test_id", testId);
+			// Initialize first lesson access
+			await LocalTestService.initializeFirstLesson(user!.id, bookId);
 
-			if (countError) throw countError;
-
-			const attemptNumber = (previousAttempts || 0) + 1;
-
-			// Create a new test attempt
-			const { data: attempt, error } = await supabase
-				.from("test_attempts")
-				.insert({
-					user_id: user?.id,
-					test_id: testId,
-					lesson_id: lessonId,
-					attempt_number: attemptNumber,
-					score: 0,
-					total_questions: questions.length,
-					correct_answers: 0,
-					answers: [],
-					passed: false,
-					started_at: new Date().toISOString(),
-				})
-				.select("*")
-				.single();
-
-			if (error) throw error;
-			console.log("Test attempt created successfully:", attempt);
+			// Create local test attempt
+			const attempt = await LocalTestService.startTest(
+				user!.id,
+				lessonId,
+				testId
+			);
+			console.log("Local test attempt created successfully:", attempt);
 			setTestAttempt(attempt);
 			setStartTime(new Date());
 		} catch (error) {
-			console.error("Error creating test attempt:", error);
+			console.error("Error creating local test attempt:", error);
 			Alert.alert("Error", "Failed to start test. Please try again.");
 		}
 	};
@@ -154,30 +137,13 @@ export const LessonTestScreen: React.FC<LessonTestScreenProps> = ({
 	};
 
 	const submitTest = async () => {
-		if (!user?.id || !testAttempt) {
+		if (!user?.id || !testAttempt || !test) {
 			Alert.alert("Error", "Cannot submit test. Please try again.");
 			return;
 		}
 
 		try {
 			setLoading(true);
-
-			// Verify test attempt still exists in the database
-			console.log("Verifying test attempt:", testAttempt.id);
-			const { data: verifiedAttempt, error: verifyError } = await supabase
-				.from("test_attempts")
-				.select("*")
-				.eq("id", testAttempt.id)
-				.eq("user_id", user.id);
-
-			if (verifyError || !verifiedAttempt || verifiedAttempt.length === 0) {
-				console.error(
-					"Test attempt verification failed:",
-					verifyError || "No attempt found"
-				);
-				Alert.alert("Error", "Test attempt not found. Please try again.");
-				return;
-			}
 
 			// Prepare answers in the required format
 			const formattedAnswers = [];
@@ -188,8 +154,8 @@ export const LessonTestScreen: React.FC<LessonTestScreenProps> = ({
 				const userAnswer = userAnswers[i] || ""; // Get answer or empty string if not answered
 
 				formattedAnswers.push({
-					question_id: question.id,
-					user_answer: userAnswer,
+					questionId: question.id,
+					userAnswer: userAnswer,
 				});
 
 				console.log(
@@ -205,29 +171,31 @@ export const LessonTestScreen: React.FC<LessonTestScreenProps> = ({
 				(endTime.getTime() - startTime.getTime()) / (1000 * 60); // convert ms to minutes
 
 			// Log debug info
-			console.log("Submitting test attempt:", {
+			console.log("Submitting local test attempt:", {
 				attempt_id: testAttempt.id,
 				answers_count: formattedAnswers.length,
 				time_taken_minutes: timeElapsed,
 			});
 
-			// Submit test using LearningService.submitTest
-			const response = await LearningService.submitTest(user.id, {
-				attempt_id: testAttempt.id,
-				answers: formattedAnswers,
-				time_taken_minutes: timeElapsed,
-			});
+			// Submit test using LocalTestService
+			const completedAttempt = await LocalTestService.submitTest(
+				testAttempt.id,
+				formattedAnswers,
+				questions,
+				test.passing_percentage,
+				timeElapsed
+			);
 
-			if (response.success && response.data) {
-				setScore(response.data.score);
-				setShowResults(true);
-				setTestCompleted(true);
-			} else {
-				console.error("Test submission failed:", response.error);
-				Alert.alert("Error", response.error || "Failed to submit test");
-			}
+			setScore(completedAttempt.score);
+			setShowResults(true);
+			setTestCompleted(true);
+			console.log(
+				`Local test completed: ${completedAttempt.score}% (${
+					completedAttempt.passed ? "PASSED" : "FAILED"
+				})`
+			);
 		} catch (error) {
-			console.error("Error submitting test:", error);
+			console.error("Error submitting local test:", error);
 			Alert.alert("Error", "Failed to submit test. Please try again.");
 		} finally {
 			setLoading(false);
@@ -241,7 +209,10 @@ export const LessonTestScreen: React.FC<LessonTestScreenProps> = ({
 		setScore(0);
 		setTestCompleted(false);
 		setTestAttempt(null);
-		loadTest(); // Create a new test attempt
+		// Create a new local test attempt
+		if (test && user?.id) {
+			createLocalTestAttempt(test.id);
+		}
 	};
 
 	const finishTest = () => {

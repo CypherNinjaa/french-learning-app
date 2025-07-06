@@ -565,14 +565,6 @@ export class LearningService {
    */
   static async initializeBookProgress(userId: string, bookId: number): Promise<ApiResponse<UserBookProgress>> {
     try {
-      // Use the database function to initialize lesson progress
-      const { error: initError } = await supabase.rpc('initialize_lesson_progress', {
-        p_user_id: userId,
-        p_book_id: bookId,
-      });
-
-      if (initError) throw initError;
-
       // Create or update book progress
       const { data, error } = await supabase
         .from('user_book_progress')
@@ -588,6 +580,41 @@ export class LearningService {
         .single();
 
       if (error) throw error;
+
+      // Initialize access to the first lesson in the book
+      const { data: firstLesson, error: firstLessonError } = await supabase
+        .from('learning_lessons')
+        .select('id')
+        .eq('book_id', bookId)
+        .eq('order_index', 0)
+        .single();
+
+      if (firstLessonError || !firstLesson) {
+        console.error('Error finding first lesson:', firstLessonError);
+      } else {
+        // Create progress record for first lesson to make it accessible
+        await supabase
+          .from('user_lesson_progress')
+          .upsert({
+            user_id: userId,
+            lesson_id: firstLesson.id,
+            status: 'not_started',
+            content_viewed: false,
+            examples_practiced: false,
+            test_passed: false,
+            total_study_time_minutes: 0,
+            bookmarks: [],
+            notes: '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_accessed_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id,lesson_id',
+            ignoreDuplicates: true // Don't overwrite if already exists
+          });
+        
+        console.log(`Initialized access to first lesson ${firstLesson.id} for user ${userId}`);
+      }
 
       return {
         data,
@@ -704,13 +731,15 @@ export class LearningService {
           onConflict: 'user_id,lesson_id',
           ignoreDuplicates: false 
         })
-        .select('*')
-        .single();
+        .select('*');
 
       if (error) throw error;
 
+      // Return the first record if multiple or the single record
+      const progressRecord = Array.isArray(data) ? data[0] : data;
+
       return {
-        data,
+        data: progressRecord,
         error: null,
         success: true,
         message: 'Progress updated successfully',
@@ -947,29 +976,81 @@ export class LearningService {
         })
         .eq('id', attempt_id)
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (updateError) throw updateError;
+      // If no row is returned, log a warning and use the original attempt with calculated values
+      let updatedAttemptRecord = null;
+      if (!updatedAttempt) {
+        console.warn('No test attempt rows updated. Attempt may not exist or was already updated. Returning original attempt with calculated score.');
+        // Update the original attempt with our calculated values
+        updatedAttemptRecord = {
+          ...attempt,
+          score,
+          total_questions: combinedAttempt.test.questions.length,
+          correct_answers: correctAnswers,
+          time_taken_minutes,
+          answers: detailedAnswers,
+          passed,
+          completed_at: new Date().toISOString(),
+        };
+      } else if (Array.isArray(updatedAttempt) && updatedAttempt.length > 0) {
+        updatedAttemptRecord = updatedAttempt[0];
+      } else {
+        updatedAttemptRecord = updatedAttempt;
+      }
 
       // Update lesson progress whether test passed or failed
       console.log(`Updating lesson progress for lesson ${combinedAttempt.lesson_id} with score ${score}%`);
-      await this.updateLessonProgress(userId, {
-        lesson_id: combinedAttempt.lesson_id,
-        action: 'submit_test',
-        data: {
-          test_score: score,
-          passing_percentage: combinedAttempt.test.passing_percentage,
-        },
-      });
+      
+      try {
+        // Direct update of lesson progress to avoid issues with the complex upsert logic
+        const { data: progressData, error: progressError } = await supabase
+          .from('user_lesson_progress')
+          .upsert({
+            user_id: userId,
+            lesson_id: combinedAttempt.lesson_id,
+            status: passed ? 'completed' : 'in_progress',
+            test_passed: passed,
+            completed_at: passed ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+            last_accessed_at: new Date().toISOString(),
+            // Set defaults for required fields
+            content_viewed: true,
+            examples_practiced: false,
+            total_study_time_minutes: 0,
+            bookmarks: [],
+            notes: '',
+            created_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id,lesson_id',
+            ignoreDuplicates: false
+          });
 
-      // Unlock next lesson only if test passed
+        if (progressError) {
+          console.error('Error updating lesson progress:', progressError);
+        } else {
+          console.log('Lesson progress updated successfully');
+        }
+      } catch (progressError) {
+        console.error('Error updating lesson progress:', progressError);
+        // Don't throw here - we still want to return the test result even if progress update fails
+      }
+
+      // Unlock next lesson only if test passed - do this locally and update database
       if (passed) {
         console.log('Test passed! Unlocking next lesson...');
-        await this.unlockNextLesson(userId, combinedAttempt.lesson_id);
+        try {
+          await this.unlockNextLessonDirect(userId, combinedAttempt.lesson_id);
+          console.log('Next lesson unlocked successfully');
+        } catch (unlockError) {
+          console.error('Error unlocking next lesson:', unlockError);
+          // Don't throw here either - test was still passed
+        }
       }
 
       return {
-        data: updatedAttempt,
+        data: updatedAttemptRecord,
         error: null,
         success: true,
         message: passed ? 'Test passed! Lesson completed.' : 'Test completed. Try again to pass.',
@@ -989,7 +1070,7 @@ export class LearningService {
   // ============================================================================
 
   /**
-   * Process lessons to determine lock status
+   * Process lessons to determine lock status - simplified approach
    */
   private static async processLessonsLockStatus(
     lessons: any[],
@@ -1003,36 +1084,25 @@ export class LearningService {
       }));
     }
 
-    // Get user's lesson progress
+    // Get user's lesson progress for all lessons in one query
     const { data: progressData } = await supabase
       .from('user_lesson_progress')
-      .select('lesson_id, status, test_passed, completion_percentage')
+      .select('lesson_id, status, test_passed')
       .eq('user_id', userId)
       .in('lesson_id', lessons.map(l => l.id));
 
     const progressMap = new Map(progressData?.map(p => [p.lesson_id, p]) || []);
 
     return lessons.map((lesson, index) => {
-      const progress = progressMap.get(lesson.id);
-      
       let isLocked = false;
       
       if (index === 0) {
         // First lesson is always unlocked
         isLocked = false;
       } else {
-        // Check if previous lesson is completed AND test is passed
-        const previousLesson = lessons[index - 1];
-        const previousProgress = progressMap.get(previousLesson.id);
-        
-        // A lesson is considered complete only if:
-        // 1. The lesson content is completed (status = 'completed' OR completion_percentage >= 80)
-        // 2. The associated test is passed (test_passed = true)
-        const isLessonComplete = previousProgress && 
-          (previousProgress.status === 'completed' || previousProgress.completion_percentage >= 80);
-        const isTestPassed = previousProgress && previousProgress.test_passed;
-        
-        isLocked = !isLessonComplete || !isTestPassed;
+        // Lesson is unlocked if user has a progress record for it
+        const hasProgress = progressMap.has(lesson.id);
+        isLocked = !hasProgress;
       }
 
       return {
@@ -1046,38 +1116,54 @@ export class LearningService {
    * Check if a lesson is accessible to a user
    */
   private static async checkLessonAccess(lessonId: number, userId: string): Promise<boolean> {
+    // Use the new local access check method
+    return await this.checkLessonAccessLocal(lessonId, userId);
+  }
+
+  /**
+   * Check lesson access locally - more reliable approach
+   */
+  private static async checkLessonAccessLocal(lessonId: number, userId: string): Promise<boolean> {
     try {
-      const { data: lesson } = await supabase
+      // Get the lesson details
+      const { data: lesson, error: lessonError } = await supabase
         .from('learning_lessons')
-        .select('book_id, order_index')
+        .select('book_id, order_index, title')
         .eq('id', lessonId)
         .single();
 
-      if (!lesson) return false;
+      if (lessonError || !lesson) {
+        console.error('Error fetching lesson:', lessonError);
+        return false;
+      }
 
-      // If it's the first lesson in the book, it's accessible
-      if (lesson.order_index === 0) return true;
+      // First lesson in any book is always accessible
+      if (lesson.order_index === 0) {
+        console.log(`Lesson ${lessonId} is the first lesson - access granted`);
+        return true;
+      }
 
-      // Check if previous lesson is completed
-      const { data: previousLesson } = await supabase
-        .from('learning_lessons')
-        .select('id')
-        .eq('book_id', lesson.book_id)
-        .eq('order_index', lesson.order_index - 1)
-        .single();
-
-      if (!previousLesson) return true; // No previous lesson
-
-      const { data: progress } = await supabase
+      // Check if user has a progress record for this lesson (which means it was unlocked)
+      const { data: progressRecord, error: progressError } = await supabase
         .from('user_lesson_progress')
-        .select('test_passed')
+        .select('lesson_id, status')
         .eq('user_id', userId)
-        .eq('lesson_id', previousLesson.id)
-        .single();
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
 
-      return progress?.test_passed || false;
+      if (progressError) {
+        console.error('Error checking lesson progress:', progressError);
+        return false;
+      }
+
+      // If there's a progress record, the lesson is accessible
+      const hasAccess = !!progressRecord;
+      console.log(`Lesson ${lessonId} access check: ${hasAccess ? 'GRANTED' : 'DENIED'}`);
+      
+      return hasAccess;
+      
     } catch (error) {
-      console.error('Error checking lesson access:', error);
+      console.error('Error in checkLessonAccessLocal:', error);
       return false;
     }
   }
@@ -1179,32 +1265,147 @@ export class LearningService {
   }
 
   /**
-   * Unlock the next lesson after completing current one
+   * Directly unlock the next lesson after passing a test - simpler approach
    */
-  private static async unlockNextLesson(userId: string, currentLessonId: number): Promise<void> {
+  private static async unlockNextLessonDirect(userId: string, currentLessonId: number): Promise<void> {
     try {
-      const { data: currentLesson } = await supabase
+      console.log(`Directly unlocking next lesson after lesson ${currentLessonId} for user ${userId}`);
+      
+      // Get current lesson details
+      const { data: currentLesson, error: currentError } = await supabase
         .from('learning_lessons')
         .select('book_id, order_index')
         .eq('id', currentLessonId)
         .single();
 
-      if (!currentLesson) return;
+      if (currentError || !currentLesson) {
+        console.error('Error fetching current lesson:', currentError);
+        return;
+      }
 
-      const { data: nextLesson } = await supabase
+      console.log(`Current lesson: book_id=${currentLesson.book_id}, order_index=${currentLesson.order_index}`);
+
+      // Get the next lesson in the same book
+      const { data: nextLesson, error: nextError } = await supabase
         .from('learning_lessons')
-        .select('id')
+        .select('id, title')
         .eq('book_id', currentLesson.book_id)
         .eq('order_index', currentLesson.order_index + 1)
         .single();
 
-      if (nextLesson) {
-        await supabase
+      if (nextError || !nextLesson) {
+        console.log('No next lesson found (end of book or error):', nextError?.message);
+        // If this was the last lesson in the book, mark book as completed
+        console.log(`User ${userId} completed book ${currentLesson.book_id}!`);
+        return;
+      }
+
+      console.log(`Found next lesson: ${nextLesson.id} - ${nextLesson.title}`);
+      
+      // Create/update progress record for the next lesson to mark it as accessible
+      const { error: updateError } = await supabase
+        .from('user_lesson_progress')
+        .upsert({
+          user_id: userId,
+          lesson_id: nextLesson.id,
+          status: 'not_started', // Mark as available but not started
+          content_viewed: false,
+          examples_practiced: false,
+          test_passed: false,
+          total_study_time_minutes: 0,
+          bookmarks: [],
+          notes: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_accessed_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,lesson_id',
+          ignoreDuplicates: false // Update if exists
+        });
+
+      if (updateError) {
+        console.error('Error creating next lesson access:', updateError);
+      } else {
+        console.log(`Successfully unlocked next lesson ${nextLesson.id} for user ${userId}`);
+      }
+      
+    } catch (error) {
+      console.error('Error in unlockNextLessonDirect:', error);
+    }
+  }
+
+  /**
+   * Unlock the next lesson after completing current one
+   */
+  private static async unlockNextLesson(userId: string, currentLessonId: number): Promise<void> {
+    try {
+      console.log(`Unlocking next lesson after lesson ${currentLessonId} for user ${userId}`);
+      
+      const { data: currentLessons, error: currentError } = await supabase
+        .from('learning_lessons')
+        .select('book_id, order_index')
+        .eq('id', currentLessonId);
+
+      if (currentError) {
+        console.error('Error fetching current lesson:', currentError);
+        return;
+      }
+
+      if (!currentLessons || currentLessons.length === 0) {
+        console.log('Current lesson not found');
+        return;
+      }
+
+      const currentLesson = currentLessons[0];
+      console.log(`Current lesson: book_id=${currentLesson.book_id}, order_index=${currentLesson.order_index}`);
+
+      const { data: nextLessons, error: nextError } = await supabase
+        .from('learning_lessons')
+        .select('id')
+        .eq('book_id', currentLesson.book_id)
+        .eq('order_index', currentLesson.order_index + 1);
+
+      if (nextError) {
+        console.error('Error fetching next lesson:', nextError);
+        return;
+      }
+
+      if (nextLessons && nextLessons.length > 0) {
+        const nextLesson = nextLessons[0];
+        console.log(`Found next lesson: ${nextLesson.id}`);
+        
+        // Try to update the next lesson's status
+        const { data: updateResult, error: updateError } = await supabase
           .from('user_lesson_progress')
-          .update({ status: 'not_started' })
-          .eq('user_id', userId)
-          .eq('lesson_id', nextLesson.id)
-          .eq('status', 'locked');
+          .upsert({
+            user_id: userId,
+            lesson_id: nextLesson.id,
+            status: 'not_started',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_accessed_at: new Date().toISOString(),
+            content_viewed: false,
+            examples_practiced: false,
+            test_passed: false,
+            total_study_time_minutes: 0,
+            bookmarks: [],
+            notes: ''
+          }, {
+            onConflict: 'user_id,lesson_id',
+            ignoreDuplicates: false
+          })
+          .select('*');
+
+        if (updateError) {
+          console.error('Error updating next lesson progress:', updateError);
+        } else {
+          console.log('Successfully unlocked next lesson:', updateResult);
+        }
+      } else {
+        console.log('No next lesson found (end of book)');
+        // If this was the last lesson in the book, we could unlock the next book here
+        // For now, just log that the user completed the book
+        console.log(`User ${userId} completed book ${currentLesson.book_id}!`);
       }
     } catch (error) {
       console.error('Error unlocking next lesson:', error);
