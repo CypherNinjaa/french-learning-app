@@ -13,6 +13,11 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { theme } from "../constants/theme";
 
+// Password must contain at least one lowercase, one uppercase, one digit, one special character, and be at least 8 characters
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+
 interface RegisterScreenProps {
 	navigation: any; // Will be properly typed with navigation types later
 }
@@ -33,13 +38,28 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
 			return;
 		}
 
+        // Check if full name contains any numbers
+        const nameHasNumber = /\d/.test(fullName);
+		if (nameHasNumber) {
+			Alert.alert("Error", "Full name cannot contain numbers");
+			return;
+		}
+
+		if(!emailRegex.test(email)) {
+			Alert.alert("Error", "Please enter a valid email address");
+			return;
+		}
+
 		if (password !== confirmPassword) {
 			Alert.alert("Error", "Passwords do not match");
 			return;
 		}
 
-		if (password.length < 6) {
-			Alert.alert("Error", "Password must be at least 6 characters long");
+		if (!passwordRegex.test(password)) {
+			Alert.alert(
+				"Error",
+				"Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+			);
 			return;
 		}
 
@@ -116,7 +136,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
 							style={styles.input}
 							value={password}
 							onChangeText={setPassword}
-							placeholder="Create a password (min. 6 characters)"
+							placeholder="Create a password"
 							secureTextEntry
 							autoCapitalize="none"
 						/>
