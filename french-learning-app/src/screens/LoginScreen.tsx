@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	View,
 	Text,
@@ -9,7 +9,9 @@ import {
 	KeyboardAvoidingView,
 	Platform,
 	ScrollView,
+	Switch,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../contexts/AuthContext";
 import { theme } from "../constants/theme";
 
@@ -20,7 +22,22 @@ interface LoginScreenProps {
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [rememberMe, setRememberMe] = useState(false);
 	const { signIn, loading } = useAuth();
+
+	useEffect(() => {
+		const checkRememberedUser = async () => {
+			const savedEmail = await AsyncStorage.getItem("rememberedEmail");
+			const savedPassword = await AsyncStorage.getItem("rememberedPassword");
+			if (savedEmail && savedPassword) {
+				setEmail(savedEmail);
+				setPassword(savedPassword);
+				// Automatically log in
+				signIn(savedEmail, savedPassword);
+			}
+		};
+		checkRememberedUser();
+	}, []);
 
 	const handleLogin = async () => {
 		if (!email || !password) {
@@ -30,6 +47,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
 		try {
 			await signIn(email, password);
+			if (rememberMe) {
+				await AsyncStorage.setItem("rememberedEmail", email);
+				await AsyncStorage.setItem("rememberedPassword", password);
+			} else {
+				await AsyncStorage.removeItem("rememberedEmail");
+				await AsyncStorage.removeItem("rememberedPassword");
+			}
 		} catch (error) {
 			Alert.alert(
 				"Login Error",
@@ -79,6 +103,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 							secureTextEntry
 							autoCapitalize="none"
 						/>
+					</View>
+
+					<View style={styles.rememberMeContainer}>
+						<Switch
+							value={rememberMe}
+							onValueChange={setRememberMe}
+						/>
+						<Text style={styles.rememberMeText}>Remember Me</Text>
 					</View>
 
 					<TouchableOpacity
@@ -202,5 +234,15 @@ const styles = StyleSheet.create({
 		...theme.typography.body,
 		color: theme.colors.primary,
 		fontWeight: "600",
+	},
+	rememberMeContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: theme.spacing.md,
+	},
+	rememberMeText: {
+		marginLeft: 8,
+		...theme.typography.body,
+		color: theme.colors.text,
 	},
 });
