@@ -16,6 +16,9 @@ import { theme } from "../constants/theme";
 // Password must contain at least one lowercase, one uppercase, one digit, one special character, and be at least 8 characters
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+// Email must end with @s.amity.edu
+// On its seperate line to make adding  paid non-amity account easier in the future
+const emailAmityRegex = /@s\.amity\.edu$/;
 
 
 interface RegisterScreenProps {
@@ -47,6 +50,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
 
 		if(!emailRegex.test(email)) {
 			Alert.alert("Error", "Please enter a valid email address");
+			return;
+		}
+		// on its seperate line to make adding  paid non-amity account easier in the future
+		if(!emailAmityRegex.test(email)) {
+			Alert.alert("Error", "Not a valid Amity email address");
 			return;
 		}
 
